@@ -59,7 +59,7 @@ Initial project setup. Created complete audio restoration pipeline with basic no
 - `src/pipeline.py` - Main orchestration
 - `README.md` - User documentation
 - `QUICKSTART.md` - Quick reference
-- `PROJECT_SUMMARY.md` - Project overview
+- `README.md` - Project overview
 - `STRUCTURE.txt` - Project structure
 
 ### Test Results

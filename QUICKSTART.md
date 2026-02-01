@@ -129,10 +129,10 @@ After running, you'll see:
 
 1. ✅ You've already run your first restoration!
 2. 🎧 Listen to the result in `output/` folder
-3. 📖 Read `PROJECT_SUMMARY.md` for more details
+3. 📖 Read `README.md` for more details
 4. 🔧 Try different enhancers: `--enhancer deepfilter` for best quality
 5. 📊 Run benchmarks: `python tests/benchmark_enhancers.py`
 
 ---
 
-**Questions? Check README.md or PROJECT_SUMMARY.md**
+**Questions? Check README.md**

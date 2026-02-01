@@ -249,9 +249,21 @@ Output Enhanced Video
 - [x] De-reverberation support
 - [x] SOTA quality metrics (DNSMOS, PESQ, STOI)
 - [x] Benchmark suite
-- [ ] Speaker diarization (Phase 3)
+- [x] Speaker diarization (Phase 3)
+- [ ] Speaker isolation (Phase 3 - Next)
 - [ ] GUI interface (future)
 - [ ] Real-time preview (future)
+
+## 📚 Documentation
+
+| Document | Purpose |
+|----------|---------|
+| **QUICKSTART.md** | Get started in 30 seconds |
+| **AGENTS.md** | Guidelines for LLM agents working on this project |
+| **ROADMAP.md** | Current phase and future plans |
+| **ITERATION_LOG.md** | Complete history of all changes |
+| **docs/QUALITY_METRICS.md** | How we measure audio quality |
+| **docs/GITHUB_SETUP.md** | GitHub integration guide |
 
 ## 📄 License
 

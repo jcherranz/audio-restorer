@@ -71,7 +71,7 @@ audio-restorer/
 ├── AGENTS.md           ← YOU ARE HERE - Read first!
 ├── ITERATION_LOG.md    ← Log of all changes made
 ├── ROADMAP.md          ← Current roadmap and plans
-├── QUALITY_METRICS.md  ← How we measure audio quality
+├── docs/QUALITY_METRICS.md  ← How we measure audio quality
 ├── TESTS/              ← All test files
 │   ├── test_pipeline.py
 │   ├── test_quality.py
@@ -122,7 +122,7 @@ When working on this project:
 1. Read `AGENTS.md` (this file)
 2. Read `ITERATION_LOG.md` - see what's been done
 3. Read `ROADMAP.md` - see current priorities
-4. Read `QUALITY_METRICS.md` - understand how we measure success
+4. Read `docs/QUALITY_METRICS.md` - understand how we measure success
 
 ### Step 2: Plan Your Work
 1. Check `ROADMAP.md` for current phase
