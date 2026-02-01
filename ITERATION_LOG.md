@@ -29,7 +29,12 @@ What should be done next based on these results.
 
 ---
 
-## [2026-01-31] Iteration 0: Project Initialization
+# Pre-Kaizen Development (Initial Setup)
+
+> These iterations represent the initial project development before adopting
+> the Kaizen methodology. They established the foundation that Kaizen iterations build upon.
+
+## [2026-01-31] Initial Setup: Project Initialization
 
 ### Summary
 Initial project setup. Created complete audio restoration pipeline with basic noise reduction.
@@ -127,7 +132,7 @@ Initial project setup. Created complete audio restoration pipeline with basic no
 
 ---
 
-## [2026-01-31] Iteration 1: ML-Powered Enhancement (Phase 2 Complete)
+## [2026-01-31] Initial ML Work: ML-Powered Enhancement (Phase 2 Complete)
 
 ### Summary
 Implemented PyTorch-based ML audio enhancement with Voice Activity Detection (VAD). Achieved significant quality improvements and met Phase 2 success criteria.
@@ -289,6 +294,12 @@ Now that Phase 2 is complete with excellent results, we can proceed to Phase 3:
 - Custom training on conference audio patterns
 
 ---
+
+# Kaizen Iterations (Systematic Improvements)
+
+> Starting from Iteration 0, the project follows Kaizen methodology:
+> one focused improvement per iteration with measurable outcomes.
+> Iterations are numbered sequentially from 0-11.
 
 ## [2026-01-31] Iteration 0: Kaizen Infrastructure Setup
 

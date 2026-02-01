@@ -9,17 +9,24 @@ cd audio-restorer
 # 2. Activate the virtual environment
 source venv/bin/activate
 
-# 3. Run the restoration
-python run.py "https://youtu.be/cglDoG0GzyA" --audio-only --quick
+# 3. Run the restoration (best quality auto-selected)
+python run.py "https://youtu.be/cglDoG0GzyA" --audio-only
 ```
 
 That's it! Your enhanced audio will be in `output/audio_cglDoG0GzyA_enhanced.wav`
+
+**Note:** The tool auto-detects GPU and uses the best enhancer available.
 
 ---
 
 ## Common Commands
 
-### Audio Only (Fastest)
+### Best Quality (Default)
+```bash
+python run.py "YOUR_YOUTUBE_URL" --audio-only
+```
+
+### Fast Mode (Lower Quality)
 ```bash
 python run.py "YOUR_YOUTUBE_URL" --audio-only --quick
 ```
@@ -64,8 +71,8 @@ python run.py "YOUR_YOUTUBE_URL" --noise-reduction 0.5
 ## Example Workflow
 
 ```bash
-# 1. Process a conference video (audio only)
-python run.py "https://youtu.be/YOUR_VIDEO" --audio-only --quick
+# 1. Process a conference video (best quality, audio only)
+python run.py "https://youtu.be/YOUR_VIDEO" --audio-only
 
 # 2. The result is saved to output/ folder
 ls output/
@@ -77,8 +84,8 @@ vlc output/*_enhanced.wav
 afplay output/*_enhanced.wav
 # On Windows: Double-click the file
 
-# 4. Not satisfied? Try with video
-python run.py "https://youtu.be/YOUR_VIDEO" --comparison
+# 4. Want speaker isolation? Add flags:
+python run.py "https://youtu.be/YOUR_VIDEO" --audio-only --diarize --isolate-speaker
 ```
 
 ---

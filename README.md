@@ -7,14 +7,13 @@ Transform poor-quality conference recordings into clear, intelligible audio usin
 
 ## 🎯 What This Tool Does
 
-- **Downloads** videos from YouTube
-- **Extracts** audio for processing
-- **Enhances** audio using:
-  - DeepFilterNet (neural noise suppression)
-  - Spectral gating (frequency-based noise removal)
-  - Audio normalization
-- **Recombines** enhanced audio with original video
-- **Creates** side-by-side comparison videos
+- **Downloads** videos from YouTube (audio-only mode recommended)
+- **Enhances** audio using AI-powered processing:
+  - DeepFilterNet neural noise suppression (best quality, GPU auto-selected)
+  - Speaker diarization and isolation
+  - Distance-robust enhancement (consistent volume)
+  - Audio normalization to broadcast standards
+- **Outputs** enhanced WAV or MP3 files
 
 ## 📋 Requirements
 
@@ -149,23 +148,21 @@ Options:
 from src.pipeline import AudioRestorationPipeline
 from config import TEMP_DIR, OUTPUT_DIR
 
-# Initialize pipeline
+# Initialize pipeline (GPU auto-detected, deepfilter used if available)
 pipeline = AudioRestorationPipeline(
     temp_dir=TEMP_DIR,
     output_dir=OUTPUT_DIR,
-    use_deepfilternet=True,
+    enhancer_type="deepfilter",  # or "torch_advanced", "simple"
     noise_reduction_strength=0.8
 )
 
-# Restore a video
+# Restore audio from a video
 result = pipeline.restore(
     url="https://youtu.be/cglDoG0GzyA",
-    audio_only=False,
-    create_comparison=True
+    audio_only=True  # Recommended: audio-only is faster
 )
 
 if result.success:
-    print(f"Enhanced video: {result.enhanced_video}")
     print(f"Enhanced audio: {result.enhanced_audio}")
 ```
 
@@ -183,21 +180,23 @@ results = pipeline.restore_batch(urls, audio_only=True)
 
 ## 🧪 Enhancement Techniques
 
-### 1. DeepFilterNet (Neural Network) - BEST QUALITY
+### 1. DeepFilterNet (Neural Network) - DEFAULT WITH GPU
 - State-of-the-art speech enhancement
 - Significant noise reduction (SNR: 49.0 dB)
 - Quality Score: 115.9/100
-- Use with: `--enhancer deepfilter`
+- **Auto-selected when GPU available**
+- Manual: `--enhancer deepfilter`
 
-### 2. PyTorch + VAD (Default)
+### 2. PyTorch + VAD (Default on CPU)
 - Spectral gating with Voice Activity Detection
 - Good balance of quality and speed
 - Quality Score: 81.0/100
-- Use with: `--enhancer torch_advanced` (or default)
+- **Auto-selected when no GPU**
+- Manual: `--enhancer torch_advanced`
 
 ### 3. ffmpeg Filters (Quick Mode)
 - Fast processing, basic quality
-- High/low pass filters
+- No ML models required
 - Quality Score: 66.5/100
 - Use with: `--quick` or `--enhancer simple`
 
@@ -246,14 +245,15 @@ Output Enhanced Video
 
 - [x] Basic pipeline (download → enhance → merge)
 - [x] YouTube integration
-- [x] DeepFilterNet neural enhancement
+- [x] DeepFilterNet neural enhancement (best quality, GPU auto-detected)
 - [x] PyTorch ML enhancement with VAD
 - [x] De-reverberation support
 - [x] SOTA quality metrics (DNSMOS, PESQ, STOI)
 - [x] Benchmark suite
 - [x] Speaker diarization (Phase 3)
 - [x] Speaker isolation (Phase 3)
-- [ ] Distance-robust enhancement (Phase 3 - Next)
+- [x] Distance-robust enhancement (Phase 3)
+- [ ] Advanced room correction (Phase 4)
 - [ ] GUI interface (future)
 - [ ] Real-time preview (future)
 

@@ -35,7 +35,8 @@ SNR (dB) = 10 * log10(P_signal / P_noise)
 import numpy as np
 import librosa
 
-audio, sr = librosa.load('audio.wav', sr=16000)
+# Load at native sample rate (pipeline uses 48kHz)
+audio, sr = librosa.load('audio.wav', sr=None)
 
 # Estimate noise from silent segments
 # Estimate signal from voiced segments
@@ -200,8 +201,9 @@ def measure_clarity(audio, sr):
 
 def measure_all(audio_path):
     """Measure all quality metrics"""
-    audio, sr = librosa.load(audio_path, sr=16000)
-    
+    # Load at native sample rate (48kHz for this pipeline)
+    audio, sr = librosa.load(audio_path, sr=None)
+
     results = {
         'snr_db': measure_snr(audio, sr),
         'noise_level_db': measure_noise_level(audio, sr),
@@ -210,7 +212,7 @@ def measure_all(audio_path):
         'clarity_score': measure_clarity(audio, sr),
         'duration_s': len(audio) / sr,
     }
-    
+
     return results
 
 
@@ -363,5 +365,7 @@ done
 
 ---
 
-**Last Updated:** 2026-01-31  
-**Next Action:** Implement measure_quality.py with all metrics
+**Last Updated:** 2026-02-01
+**Note:** For quick analysis use `tests/measure_quality.py`. For academic-grade
+metrics (DNSMOS, PESQ, STOI), use `tests/sota_benchmark.py`.
+**Pipeline Sample Rate:** 48kHz (matches DeepFilterNet native rate)
