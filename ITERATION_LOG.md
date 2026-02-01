@@ -853,14 +853,144 @@ python tests/sota_benchmark.py output/*.wav
 - [x] DeepFilter scores higher than other enhancers
 - [x] CLI works with multiple files
 
-### Next Steps (Iteration 7)
-- Add Resemble Enhance as alternative enhancer
-- Compare all enhancers using SOTA metrics
+---
+
+## [2026-02-01] Iteration 7: Resemble Enhance Integration (BLOCKED)
+
+### Summary
+Attempted to integrate Resemble Enhance as a new enhancer option. Implementation complete but blocked by environment compatibility issues.
+
+### What is Resemble Enhance?
+- AI-powered speech enhancement from Resemble AI
+- Two modules: denoiser + enhancer (CFM-based)
+- Trained on 44.1kHz high-quality speech data
+- MIT licensed, open source
+
+### Implementation Completed
+- Created `src/resemble_enhancer.py` with full ResembleEnhancer class
+- Updated `src/pipeline.py` with "resemble" option in _create_enhancer()
+- Updated `run.py` with "resemble" in --enhancer choices
+- Updated `requirements.txt` (commented out due to compatibility)
+
+### Blocking Issues
+
+**Environment Incompatibility:**
+| Requirement | Our Version | Required |
+|-------------|-------------|----------|
+| PyTorch | 2.5.1 | 2.1.1 (exact) |
+| torchaudio | 2.5.1 | 2.1.1 (exact) |
+| DeepSpeed | N/A | Needs CUDA_HOME |
+
+**DeepSpeed Compilation Error:**
+```
+MissingCUDAException: CUDA_HOME does not exist, unable to compile CUDA op(s)
+```
+
+### Resolution
+- Code retained for future use when environment supports it
+- Fallback chain works: resemble → deepfilter (graceful degradation)
+- Pivoted to Iteration 8: Comprehensive Benchmark Suite
+
+### Lessons Learned
+1. Check dependency constraints before implementation
+2. resemble-enhance has strict pinned versions (not semver ranges)
+3. Inference-only use still requires training dependencies (deepspeed)
+
+### Files Created/Modified
+| File | Status |
+|------|--------|
+| `src/resemble_enhancer.py` | Created (ready for future use) |
+| `src/pipeline.py` | Modified (resemble option added) |
+| `run.py` | Modified (resemble in choices) |
+| `requirements.txt` | Modified (commented out) |
+
+### Verification
+- [x] CLI shows resemble option: `python run.py --help`
+- [x] Fallback works: resemble → deepfilter
+- [ ] Actual enhancement: BLOCKED (dependency issues)
 
 ---
 
-**Total Iterations:** 9 (0-2 original + Kaizen 0-6 complete)
-**Current Phase:** SOTA Upgrades - **IN PROGRESS**
+## [2026-02-01] Iteration 8: Comprehensive Benchmark Suite (COMPLETE)
+
+### Summary
+Created a comprehensive benchmark suite to systematically compare all enhancers and track quality improvements over time.
+
+### Goals Achieved
+1. ✅ Compare all enhancers (simple, torch, torch_advanced, deepfilter) systematically
+2. ✅ Generate before/after quality reports  
+3. ✅ Create automated benchmark runner (`tests/benchmark_enhancers.py`)
+4. ✅ Establish baseline metrics for future iterations
+
+### Files Created
+- `tests/benchmark_enhancers.py` - Comprehensive benchmark suite with:
+  - Automated enhancer comparison
+  - JSON and text report generation
+  - SOTA metrics integration (optional)
+  - Cached reference audio support
+
+### Usage
+```bash
+# Full benchmark (all enhancers)
+python tests/benchmark_enhancers.py
+
+# With SOTA metrics
+python tests/benchmark_enhancers.py --sota
+
+# Specific enhancers
+python tests/benchmark_enhancers.py --enhancers deepfilter torch_advanced
+```
+
+### Verification
+- [x] Benchmark runs all enhancers successfully
+- [x] Reports generated in JSON and text formats
+- [x] Comparison table printed to console
+- [x] SOTA metrics integration works
+
+---
+
+## [2026-02-01] Cleanup: Post-Iteration 8
+
+### Summary
+Codebase cleanup to remove unused code, consolidate files, and free disk space before Iteration 9.
+
+### Changes Made
+
+| Action | File/Directory | Details |
+|--------|---------------|---------|
+| **Deleted** | `src/resemble_enhancer.py` | Removed (dependency issues) |
+| **Removed** | `resemble` option | From `run.py` and `pipeline.py` |
+| **Deprecated** | `src/video_merger.py` | Added deprecation notice |
+| **Consolidated** | `tests/test_benchmark.py` | Deleted (superseded by benchmark_enhancers.py) |
+| **Moved** | `compare.py` → `tools/audio_compare.py` | Organized utilities |
+| **Created** | `tools/cleanup_outputs.py` | Cleanup automation tool |
+
+### Disk Cleanup
+```bash
+# Files removed:
+- output/test_*.wav (6 files, ~2.8 GB)
+- output/simple_version_enhanced.wav (~600 MB)
+- output/audio_*_enhanced.wav (various tests)
+- benchmarks/enhanced_simple.wav (~600 MB)
+
+# Space saved: ~3.8 GB
+```
+
+### Updated Documentation
+- `AGENTS.md` - Updated iteration status, removed resemble references
+- `ROADMAP.md` - Updated phase status
+
+### Verification
+- [x] `python run.py --help` works (no resemble option)
+- [x] All tests pass: `python -m pytest tests/ -v`
+- [x] No resemble references in codebase
+- [x] Video merger still functional (deprecated but works)
+
+---
+
+**Total Iterations:** 10 (0-2 original + Kaizen 0-7) + Cleanup
+**Current Phase:** **Ready for Iteration 9 - Pipeline Optimization**
 **Best Quality Score:** 115.9/100 (DeepFilterNet)
 **Best DNSMOS:** 2.62 OVRL, 3.87 BAK (DeepFilterNet)
-**Last Updated:** 2026-01-31
+**Disk Usage:** Reduced by ~3.8 GB
+**Last Updated:** 2026-02-01

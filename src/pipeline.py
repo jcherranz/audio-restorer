@@ -124,7 +124,7 @@ class AudioRestorationPipeline:
                 print("Using SimpleEnhancer (ffmpeg-based)")
             return SimpleEnhancer(verbose)
 
-        elif enhancer_type == "deepfilter":
+        if enhancer_type == "deepfilter":
             try:
                 from .deepfilter_enhancer import DeepFilterNetEnhancer
                 if verbose:

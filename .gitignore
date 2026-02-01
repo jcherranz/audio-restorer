@@ -53,3 +53,4 @@ models/*.bin
 
 # Logs
 *.log
+benchmarks/*.wav

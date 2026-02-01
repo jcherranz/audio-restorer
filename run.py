@@ -90,7 +90,7 @@ Examples:
         type=str,
         choices=["simple", "torch", "torch_advanced", "deepfilter"],
         default=None,
-        help="Enhancer type: simple (ffmpeg), torch (ML), torch_advanced (ML+VAD), deepfilter (neural network - best quality)"
+        help="Enhancer type: simple (ffmpeg), torch (ML), torch_advanced (ML+VAD), deepfilter (neural network)"
     )
     
     parser.add_argument(

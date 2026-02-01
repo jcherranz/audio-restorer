@@ -1,5 +1,14 @@
 """
-Video Merger Module
+Video Merger Module (DEPRECATED)
+==============================
+
+⚠️  DEPRECATION NOTICE:
+This module is deprecated and will be removed in a future version.
+Video processing is secondary to audio quality in this project.
+
+The --comparison flag still works but is not actively maintained.
+For audio-only workflows (recommended), use --audio-only.
+
 Combines enhanced audio with original video
 """
 

@@ -12,7 +12,10 @@
       "Bash(pip install:*)",
       "Bash(ffmpeg:*)",
       "Bash(apt list:*)",
-      "Bash(/home/jcherranz/audio-restorer/ffmpeg -i output/test_deepfilter_chunked_enhanced.wav -af loudnorm=print_format=summary -f null -)"
+      "Bash(/home/jcherranz/audio-restorer/ffmpeg -i output/test_deepfilter_chunked_enhanced.wav -af loudnorm=print_format=summary -f null -)",
+      "WebFetch(domain:github.com)",
+      "Bash(pip show:*)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }
