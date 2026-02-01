@@ -2,6 +2,97 @@
 
 > **For AI Agents:** This document contains all information needed to interact with GitHub for this project.
 
+## 🎯 When to Use GitHub - Decision Guide for AI Agents
+
+### Auto-Commit Triggers (Commit & Push When)
+
+| Trigger | Action Required | Example Commit Message |
+|---------|----------------|------------------------|
+| **Feature Complete** | Commit + Push | `Add DNSMOS metric calculation to quality gate` |
+| **Bug Fix** | Commit + Push | `Fix: Handle NaN values in SNR calculation` |
+| **Documentation Update** | Commit + Push | `Update AGENTS.md with new enhancer options` |
+| **Test Added/Fixed** | Commit + Push | `Add unit tests for DeepFilter enhancer` |
+| **Config Change** | Commit + Push | `Update default sample rate to 44.1kHz` |
+| **Iteration Complete** | Commit + Push | `Complete iteration 7: Add Resemble Enhance` |
+
+### Do NOT Commit (Yet)
+
+| Situation | Reason | What to Do Instead |
+|-----------|--------|-------------------|
+| Work in progress | Unfinished code | Continue working, commit when feature works |
+| Broken tests | Would break CI | Fix tests first, then commit |
+| Temporary files | Not meant for repo | Add to .gitignore, don't commit |
+| Secrets/API keys | Security risk | Use env files, add to .gitignore |
+| Binary outputs | Large/temporary | Add output/* to .gitignore |
+
+### Commit Frequency Guidelines
+
+**Kaizen Workflow (This Project):**
+- ✅ **End of each iteration** - Always commit
+- ✅ **After fixing a bug** - Commit immediately
+- ✅ **After adding tests** - Commit with the feature
+- ✅ **Documentation updates** - Commit as you go
+- ✅ **Before asking user** - Commit current progress
+- ❌ **Every 5 minutes** - Too frequent
+- ❌ **Only at end of day** - Risk losing work
+
+### Pre-Commit Checklist
+
+Before every commit, verify:
+
+```bash
+# 1. Check what changed
+git status
+git diff --stat
+
+# 2. Are tests passing?
+python -m pytest tests/ -v --tb=short
+
+# 3. Is quality gate satisfied?
+python tests/quality_gate.py output/test_enhanced.wav
+
+# 4. Review your changes
+git diff
+
+# 5. Commit with descriptive message
+git commit -m "type: description"
+```
+
+### Commit Message Format
+
+```
+type: Brief description (50 chars or less)
+
+Longer explanation if needed (wrap at 72 chars).
+Explain WHAT changed and WHY, not HOW.
+
+- Bullet points for multiple changes
+- Reference issues: Fixes #123
+```
+
+**Types:**
+- `feat:` - New feature
+- `fix:` - Bug fix
+- `docs:` - Documentation only
+- `test:` - Adding/updating tests
+- `refactor:` - Code change that neither fixes bug nor adds feature
+- `perf:` - Performance improvement
+- `chore:` - Maintenance, config, build changes
+
+**Examples:**
+```
+feat: Add DeepFilterNet neural denoising
+
+Implements DeepFilterNet2 for superior noise reduction.
+Quality score improved from 81.0 to 115.9.
+
+fix: Handle zero-division in SNR calculation
+
+Prevents crash when processing silent audio segments.
+
+docs: Update ROADMAP with Phase 3 timeline
+```
+
 ## Repository Information
 
 | Setting | Value |
@@ -186,6 +277,105 @@ curl -H "Authorization: token $GITHUB_TOKEN" \
 2. **Token Storage:** Token is stored in `~/.config/github/audio-restorer.env` with 600 permissions (owner read/write only)
 3. **Remote URL:** Always clean the token from the remote URL after use to prevent accidental exposure
 4. **SSH Keys:** Prefer SSH for interactive use, tokens for automation
+
+## Complete Agent Workflow
+
+### Starting a Session
+
+```bash
+# 1. Navigate to project
+cd ~/audio-restorer
+
+# 2. Activate environment
+source venv/bin/activate
+
+# 3. Load GitHub credentials
+source ~/.config/github/audio-restorer.env
+
+# 4. Configure git for push
+git remote set-url origin https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/${GITHUB_USERNAME}/${GITHUB_REPO}.git
+
+# 5. Pull latest changes
+git pull origin main
+
+# 6. Check status
+git status
+```
+
+### During Work (Every Significant Change)
+
+```bash
+# Check what you've changed
+git diff
+
+# Check summary
+git diff --stat
+
+# If tests pass and you're ready to save progress:
+git add .
+git commit -m "type: Description"
+```
+
+### Ending a Session (Mandatory)
+
+```bash
+# 1. Final status check
+git status
+
+# 2. Run tests
+python -m pytest tests/ -v
+
+# 3. If tests pass, commit any remaining changes
+if [ -n "$(git status --porcelain)" ]; then
+    git add .
+    git commit -m "chore: Session checkpoint - [brief summary of work done]"
+fi
+
+# 4. Push to GitHub
+git push origin main
+
+# 5. Cleanup (REMOVE token from URL!)
+git remote set-url origin https://github.com/${GITHUB_USERNAME}/${GITHUB_REPO}.git
+
+# 6. Verify cleanup
+git remote -v
+```
+
+### Handling Common Scenarios
+
+**Scenario 1: Remote has changes you don't have**
+```bash
+# Error: "failed to push some refs"
+# Solution:
+git pull origin main
+# Resolve any conflicts if prompted
+git push origin main
+```
+
+**Scenario 2: Made a mistake in last commit**
+```bash
+# Fix the mistake
+git add .
+git commit --amend -m "Corrected message"
+git push --force-with-lease origin main  # Only if already pushed
+```
+
+**Scenario 3: Want to undo last commit (keep changes)**
+```bash
+git reset HEAD~1
+# Files are unstaged but changes are preserved
+git status
+```
+
+**Scenario 4: Accidentally committed secrets**
+```bash
+# DON'T PUSH!
+git reset HEAD~1
+git checkout -- the-secret-file
+echo "the-secret-file" >> .gitignore
+git add .gitignore
+git commit -m "fix: Add secret file to .gitignore"
+```
 
 ## Troubleshooting
 

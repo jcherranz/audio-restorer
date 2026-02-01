@@ -284,40 +284,72 @@ cat ROADMAP.md
 ## 🌐 GitHub Integration
 
 **Repository:** https://github.com/jcherranz/audio-restorer
+**Documentation:** `docs/GITHUB_SETUP.md`
 
-### For AI Agents: Automated GitHub Operations
+### When to Commit & Push
 
-**Setup (One-time per session):**
+**ALWAYS commit when:**
+- ✅ Completing a feature or iteration
+- ✅ Fixing a bug
+- ✅ Adding/updating tests
+- ✅ Updating documentation
+- ✅ Before ending a session
+
+**NEVER commit:**
+- ❌ Broken or incomplete code
+- ❌ Files with failing tests
+- ❌ Secrets or temporary files
+- ❌ Binary outputs (already in .gitignore)
+
+### Quick Workflow
+
 ```bash
-# Load GitHub credentials
+# 1. Setup (do this first in every session)
 source ~/.config/github/audio-restorer.env
-
-# Configure git remote with token (for push)
 git remote set-url origin https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/${GITHUB_USERNAME}/${GITHUB_REPO}.git
-```
 
-**Common Operations:**
-```bash
-# Check status
+# 2. Check current status
 git status
 
-# Stage all changes
-git add .
-
-# Commit
-git commit -m "Descriptive commit message"
-
-# Push to GitHub
-git push origin main
-
-# Pull latest changes
+# 3. Pull latest changes (always pull before starting)
 git pull origin main
 
-# Clean token from URL (after push)
+# 4. Do your work...
+
+# 5. Before committing - verify tests pass
+python -m pytest tests/ -v --tb=short
+
+# 6. Stage, commit, push
+git add .
+git commit -m "type: Description of changes"
+git push origin main
+
+# 7. Cleanup (remove token from URL)
 git remote set-url origin https://github.com/${GITHUB_USERNAME}/${GITHUB_REPO}.git
 ```
 
-**Full Documentation:** See `docs/GITHUB_SETUP.md` for complete GitHub workflow and authentication methods.
+### Commit Message Format
+
+```
+type: Brief description (50 chars)
+
+- feat: New feature
+- fix: Bug fix  
+- docs: Documentation
+- test: Tests
+- refactor: Code restructuring
+- perf: Performance
+- chore: Maintenance
+```
+
+### Pre-Commit Checklist
+
+Before every commit:
+1. ✅ `git status` - Know what changed
+2. ✅ Tests pass: `python -m pytest tests/ -v`
+3. ✅ Quality gate: `python tests/quality_gate.py output/test.wav`
+4. ✅ Meaningful commit message
+5. ✅ No secrets in staged files
 ```
 
 ## Enhancer Interface Contract
