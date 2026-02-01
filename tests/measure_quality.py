@@ -1,21 +1,28 @@
 #!/usr/bin/env python3
 """
-Audio Quality Measurement Tool
-==============================
+Audio Quality Measurement Tool (Quick Analysis)
+===============================================
 
 Analyzes audio files and reports quality metrics.
+This tool provides FAST, SIMPLIFIED metrics for quick iteration.
+
+For ACADEMIC-GRADE METRICS (DNSMOS, PESQ, STOI, SI-SDR), use:
+    python tests/sota_benchmark.py <audio_file>
 
 Usage:
     python measure_quality.py <audio_file>
     python measure_quality.py --compare <before.wav> <after.wav>
 
-Metrics measured:
-    - SNR (Signal-to-Noise Ratio)
-    - Background noise level
-    - Dynamic range
-    - Loudness (LUFS)
-    - Clarity score
-    - Overall quality score
+Metrics measured (simplified):
+    - SNR (Signal-to-Noise Ratio) - estimated from energy percentiles
+    - Background noise level - bottom 10% frame energy
+    - Dynamic range - peak to RMS ratio
+    - Loudness (LUFS) - simplified K-weighting estimate (not ITU-R BS.1770)
+    - Clarity score - custom heuristic (HF ratio + noise factor)
+    - Overall quality score - weighted combination
+
+NOTE: For publication-quality metrics or academic comparison, use sota_benchmark.py
+which implements proper DNSMOS (Microsoft), PESQ (ITU-T P.862), and STOI.
 """
 
 import sys

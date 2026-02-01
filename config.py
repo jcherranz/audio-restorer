@@ -22,29 +22,43 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 MODELS_DIR.mkdir(exist_ok=True)
 
 # Audio Settings
+# NOTE: Using 48kHz throughout for consistency with DeepFilterNet's native rate.
+# This avoids quality loss from multiple resampling operations.
 AUDIO_SETTINGS = {
-    "sample_rate": 44100,        # Full bandwidth processing (was 16kHz)
-    "output_sample_rate": 44100,  # CD quality output
+    "sample_rate": 48000,        # Matches DeepFilterNet native rate
+    "output_sample_rate": 48000,  # Keep 48kHz for output
     "format": "wav",             # Intermediate format
     "output_format": "mp3",      # Final audio format
     "bitrate": "192k",           # Output bitrate
 }
 
 # Enhancement Settings
+def _detect_gpu():
+    """Auto-detect GPU availability for optimal defaults."""
+    try:
+        import torch
+        return torch.cuda.is_available()
+    except ImportError:
+        return False
+
+_GPU_AVAILABLE = _detect_gpu()
+
 ENHANCEMENT = {
     # Noise reduction strength (0.0 to 1.0)
     # Higher = more aggressive noise removal, but might affect speech quality
     "noise_reduction_strength": 0.8,
-    
+
     # Enhancer type to use:
     # - "simple": ffmpeg-based (fastest, basic quality)
     # - "torch": PyTorch-based spectral gating (better quality)
-    # - "torch_advanced": PyTorch with VAD (best quality, slower)
-    "enhancer_type": "torch_advanced",
-    
-    # Use GPU acceleration if available (requires CUDA)
-    "use_gpu": False,
-    
+    # - "torch_advanced": PyTorch with VAD (good quality, CPU-friendly)
+    # - "deepfilter": Neural network denoising (best quality, GPU recommended)
+    # Auto-selects deepfilter if GPU available, otherwise torch_advanced
+    "enhancer_type": "deepfilter" if _GPU_AVAILABLE else "torch_advanced",
+
+    # Use GPU acceleration if available (auto-detected)
+    "use_gpu": _GPU_AVAILABLE,
+
     # Fallback to simple enhancer if ML fails
     "fallback_to_simple": True,
     

@@ -17,7 +17,17 @@ from tqdm import tqdm
 
 
 class AudioEnhancer:
-    """Enhances audio quality through various techniques"""
+    """
+    DEPRECATED: Legacy enhancer class, not used by the pipeline.
+
+    This class was the original audio enhancer implementation.
+    The pipeline now uses specialized enhancers:
+    - SimpleEnhancer (ffmpeg-based)
+    - TorchEnhancer / AdvancedMLEnhancer (ml_enhancer.py)
+    - DeepFilterNetEnhancer (deepfilter_enhancer.py)
+
+    Kept for backwards compatibility but may be removed in future versions.
+    """
     
     def __init__(self, 
                  sample_rate: int = 16000,

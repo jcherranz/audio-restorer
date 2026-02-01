@@ -14,7 +14,7 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from .downloader import YouTubeDownloader
-from .audio_enhancer import AudioEnhancer, SimpleEnhancer
+from .audio_enhancer import SimpleEnhancer  # AudioEnhancer is legacy, not used
 
 
 @dataclass
@@ -42,7 +42,7 @@ class AudioRestorationPipeline:
     def __init__(self,
                  temp_dir: Path,
                  output_dir: Path,
-                 sample_rate: int = 16000,
+                 sample_rate: int = 48000,  # Match DeepFilterNet native rate
                  enhancer_type: str = "torch_advanced",
                  noise_reduction_strength: float = 0.8,
                  use_gpu: bool = False,

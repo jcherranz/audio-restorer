@@ -220,11 +220,33 @@ class SimpleEnhancer:
         pass
 ```
 
-### Known Limitations
-1. ✅ ML-based noise suppression implemented (PyTorch spectral gating with VAD)
-2. ⬜ No speaker isolation yet (Phase 3)
-3. ⬜ No echo cancellation yet (Phase 4)
-4. Fixed filter frequencies (100Hz/8000Hz) - could be adaptive
+### Known Limitations & Design Decisions
+
+**Implemented Features:**
+1. ✅ ML-based noise suppression (PyTorch spectral gating, DeepFilterNet neural)
+2. ✅ Speaker diarization and isolation (Phase 3 complete)
+3. ✅ Distance-robust enhancement (adaptive gain/EQ)
+4. ✅ De-reverberation (NARA-WPE, optional)
+
+**Acknowledged Limitations:**
+1. **Heuristic Diarization:** Uses energy + spectral features, not embedding-based models
+   like pyannote.audio. Works for typical conference recordings but may struggle with
+   complex multi-speaker scenarios with overlapping speech.
+
+2. **Heuristic Distance Estimation:** Simple feature-based approach (energy, HF ratio,
+   SNR, reverb ratio). Not model-based speaker separation. May amplify noise in
+   challenging acoustic conditions.
+
+3. **Simplified Quality Metrics:** Basic measure_quality.py uses simplified LUFS
+   estimation and custom clarity scores. For academic-grade metrics, use
+   `tests/sota_benchmark.py` which provides DNSMOS, PESQ, STOI, and SI-SDR.
+
+4. **Sample Rate:** Pipeline uses 48kHz throughout to match DeepFilterNet's native rate.
+   This is a deliberate choice to avoid quality loss from multiple resampling operations.
+
+5. **GPU Dependency for Best Quality:** DeepFilterNet provides best results but is
+   slow on CPU. Auto-detection selects deepfilter when GPU available, torch_advanced
+   otherwise.
 
 ## 🎯 Success Criteria
 

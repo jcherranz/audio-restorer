@@ -124,7 +124,7 @@ class YouTubeDownloader:
             FFMPEG_PATH, '-y', '-i', str(video_path),
             '-vn',  # No video
             '-acodec', 'pcm_s16le',  # PCM 16-bit little-endian
-            '-ar', '16000',  # 16kHz (good for speech)
+            '-ar', '48000',  # 48kHz (matches DeepFilterNet native rate)
             '-ac', '1',  # Mono
             str(audio_path)
         ]
