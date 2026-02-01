@@ -456,7 +456,8 @@ class MyEnhancer(BaseEnhancer):
 | 8 | Comprehensive benchmark suite | **Complete** |
 | 9 | Speaker diarization | **Complete** |
 | 10 | Speaker isolation | **Complete** |
-| 11 | Distance-robust enhancement | **Next** |
+| 11 | Distance-robust enhancement | **Complete** |
+| 12 | Automatic gain control per speaker | **Next** |
 
 ### Available Enhancers (Best to Basic)
 1. `--enhancer deepfilter` - Neural network denoising (best quality)
@@ -468,13 +469,14 @@ class MyEnhancer(BaseEnhancer):
 - `--dereverb` - Add de-reverberation (removes room echo, CPU-intensive)
 - `--diarize` - Perform speaker diarization (identifies speakers)
 - `--isolate-speaker` - Isolate main speaker (removes audience/others)
+- `--distance-robust` - Apply distance-robust enhancement (adaptive gain/EQ per speaker distance)
 
 ---
 
 **Remember:** This is an AUDIO QUALITY project. Video is secondary.
 Every iteration should make conference audio clearer and more intelligible.
 
-**Last updated by:** Iteration 10 (Speaker Isolation)
-**Current Phase:** Phase 3 - Speaker Enhancement (Iterations 9-10 Complete)
+**Last updated by:** Iteration 11 (Distance-Robust Enhancement)
+**Current Phase:** Phase 3 - Speaker Enhancement COMPLETE (Iterations 9-11)
 **Final Quality Score:** 115.9/100 (DeepFilterNet - exceeded all targets)
 **Optional:** --dereverb flag for room echo removal

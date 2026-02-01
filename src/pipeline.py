@@ -51,6 +51,7 @@ class AudioRestorationPipeline:
                  dereverb: bool = False,
                  diarize: bool = False,
                  isolate_speaker: bool = False,
+                 distance_robust: bool = False,
                  verbose: bool = True):
         """
         Initialize the pipeline.
@@ -67,6 +68,7 @@ class AudioRestorationPipeline:
             dereverb: Apply de-reverberation after enhancement
             diarize: Perform speaker diarization (identify speakers)
             isolate_speaker: Isolate main speaker (remove others)
+            distance_robust: Apply distance-robust enhancement (adaptive gain/EQ)
             verbose: Print progress messages
         """
         from config import ENHANCEMENT, DEREVERB
@@ -146,6 +148,20 @@ class AudioRestorationPipeline:
                 if verbose:
                     print(f"⚠ Could not load speaker isolation: {e}")
                 self.isolate_enabled = False
+
+        # Distance-robust enhancement (optional, adaptive gain/EQ per speaker)
+        self.distance_robust_enabled = distance_robust
+        self.distance_enhancer = None
+        if self.distance_robust_enabled:
+            try:
+                from .distance_enhancer import DistanceRobustEnhancer
+                self.distance_enhancer = DistanceRobustEnhancer(verbose=verbose)
+                if verbose:
+                    print("Distance-robust enhancement enabled")
+            except ImportError as e:
+                if verbose:
+                    print(f"⚠ Could not load distance enhancer: {e}")
+                self.distance_robust_enabled = False
     
     def _create_enhancer(self, 
                          enhancer_type: str,
@@ -389,7 +405,7 @@ class AudioRestorationPipeline:
                 try:
                     print("\n" + "=" * 60)
                     isolated_output = self.output_dir / f"{audio_path.stem}_isolated.wav"
-                    
+
                     # If we have diarization, use it; otherwise run diarization first
                     if diarization_output and diarization_output.exists():
                         isolation_result = self.isolator.isolate_main_speaker(
@@ -402,21 +418,49 @@ class AudioRestorationPipeline:
                             enhanced_audio_path,
                             isolated_output
                         )
-                    
+
                     # Replace enhanced audio with isolated version
                     import shutil
                     shutil.move(str(isolated_output), str(enhanced_audio_path))
-                    
+
                     if self.verbose:
                         print(f"\n   Isolated main speaker: {isolation_result.main_speaker}")
                         print(f"   Retained: {isolation_result.retention_percentage:.1f}% of audio")
                         print(f"   Removed: {timedelta(seconds=int(isolation_result.removed_duration))} of interference")
-                        
+
                 except Exception as e:
                     if self.verbose:
                         print(f"\n⚠ Speaker isolation failed: {e}")
                         print("  Continuing with all speakers")
-            
+
+            # Step 7: Distance-robust enhancement (optional)
+            if self.distance_robust_enabled and self.distance_enhancer:
+                try:
+                    print("\n" + "=" * 60)
+                    distance_output = self.output_dir / f"{audio_path.stem}_distance_enhanced.wav"
+
+                    # Use diarization if available for per-speaker analysis
+                    distance_result = self.distance_enhancer.enhance(
+                        enhanced_audio_path,
+                        distance_output,
+                        diarization_json=diarization_output if diarization_output and diarization_output.exists() else None
+                    )
+
+                    # Replace enhanced audio with distance-enhanced version
+                    import shutil
+                    shutil.move(str(distance_output), str(enhanced_audio_path))
+
+                    if self.verbose:
+                        print(f"\n   Segments analyzed: {distance_result.segments_processed}")
+                        print(f"   Average distance: {distance_result.average_distance:.2f} (0=close, 1=far)")
+                        if distance_result.gain_adjustments:
+                            print(f"   Gain range: {min(distance_result.gain_adjustments):.1f} to {max(distance_result.gain_adjustments):.1f} dB")
+
+                except Exception as e:
+                    if self.verbose:
+                        print(f"\n⚠ Distance-robust enhancement failed: {e}")
+                        print("  Continuing without distance compensation")
+
             # Success!
             result.success = True
             result.processing_time = time.time() - start_time
@@ -433,6 +477,8 @@ class AudioRestorationPipeline:
                 print(f"   Comparison: {result.comparison_video}")
             if self.diarize_enabled:
                 print(f"   Diarization: {diarization_output}")
+            if self.distance_robust_enabled:
+                print(f"   Distance-robust: Applied (adaptive gain/EQ)")
             print("=" * 60)
             
             # Cleanup

@@ -137,6 +137,12 @@ Examples:
         help="Isolate main speaker - removes audience and other speakers"
     )
 
+    parser.add_argument(
+        "--distance-robust",
+        action="store_true",
+        help="Apply distance-robust enhancement (adaptive gain/EQ per speaker distance)"
+    )
+
     return parser
 
 
@@ -181,6 +187,7 @@ def main():
         dereverb=args.dereverb,
         diarize=args.diarize,
         isolate_speaker=args.isolate_speaker,
+        distance_robust=args.distance_robust,
         verbose=not args.quiet
     )
     

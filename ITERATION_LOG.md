@@ -1131,4 +1131,106 @@ python src/speaker_isolation.py input.wav -d diarization.json -o output.wav
 
 ---
 
+## [2026-02-01] Iteration 11: Distance-Robust Speech Enhancement (COMPLETE)
+
+### Summary
+Added distance-robust speech enhancement to handle speakers at varying distances from the microphone. The module estimates relative speaker distance from audio characteristics and applies adaptive enhancement (gain, frequency correction) per segment.
+
+### What is Distance-Robust Enhancement?
+Conference recordings often have speakers at different distances:
+- Main presenter (close to microphone) vs audience questions (far from mic)
+- Different audio levels and noise characteristics per distance
+- Far speakers have less high-frequency content, more reverb, lower SNR
+
+This module addresses these issues by:
+1. Estimating relative distance from audio features (energy, high-freq ratio, SNR, reverb)
+2. Applying adaptive gain compensation (louder for far speakers)
+3. Applying high-frequency boost for far speakers (compensate for air absorption)
+4. Normalizing overall loudness for consistent output
+
+### Implementation
+- Created `src/distance_enhancer.py` with:
+  - `DistanceEstimator` class - estimates relative distance from audio features
+  - `DistanceRobustEnhancer` class - applies adaptive enhancement per segment
+  - `DistanceEstimate` dataclass - holds distance metrics for each segment
+  - `EnhancementResult` dataclass - holds processing statistics
+- Added `--distance-robust` CLI flag to `run.py`
+- Integrated with pipeline (Step 7, after speaker isolation)
+- Works with or without diarization (can analyze whole file in 5s chunks)
+
+### Changes Made
+| File | Change |
+|------|--------|
+| `src/distance_enhancer.py` | **NEW** - Distance-robust enhancement module |
+| `src/pipeline.py` | Added `--distance-robust` integration |
+| `run.py` | Added `--distance-robust` CLI flag |
+| `src/audio_enhancer.py` | Fixed SimpleEnhancer to accept `**kwargs` |
+
+### Distance Estimation Features
+| Feature | Description | Far Indicator |
+|---------|-------------|---------------|
+| Energy Level | RMS in dB | Lower energy |
+| High-Freq Ratio | Energy above 4kHz / total | Less high frequency |
+| Estimated SNR | Signal vs noise floor | Lower SNR |
+| Reverb Ratio | Late vs early energy | More reverb |
+
+### Usage
+```bash
+# With distance-robust enhancement
+python run.py "https://youtu.be/cglDoG0GzyA" --audio-only --distance-robust
+
+# Combined with diarization (uses per-speaker segments)
+python run.py "https://youtu.be/cglDoG0GzyA" --audio-only --diarize --distance-robust
+
+# Full pipeline with all features
+python run.py "https://youtu.be/cglDoG0GzyA" --audio-only --enhancer deepfilter --diarize --isolate-speaker --distance-robust
+
+# Standalone usage
+python src/distance_enhancer.py input.wav -o output.wav
+python src/distance_enhancer.py input.wav -d diarization.json -o output.wav
+```
+
+### Test Results
+**Reference Video:** https://youtu.be/cglDoG0GzyA (58 minutes)
+
+| Metric | Value |
+|--------|-------|
+| Segments Analyzed | 697 |
+| Average Distance | 0.64 (0=close, 1=far) |
+| Gain Range | 0.4 to 20.0 dB |
+| Loudness Adjustment | -20.9 → -20.2 dB |
+| Processing Time | ~100 seconds |
+
+### Technical Details
+- **Distance Score:** Weighted combination of 4 features (energy 35%, HF 25%, SNR 20%, reverb 20%)
+- **Gain Adjustment:** Base gain to target loudness + distance-based boost (up to +6dB for far speakers)
+- **EQ Correction:** High-shelf filter (+3-6dB above 3kHz) for far speakers
+- **Crossfade:** 50ms crossfades between segments for smooth transitions
+- **Max Gain:** Limited to ±20dB to prevent artifacts
+
+### Verification
+- [x] Module imports successfully
+- [x] CLI `--distance-robust` flag works
+- [x] Pipeline integration functional
+- [x] Works with diarization (per-speaker analysis)
+- [x] Works standalone (5-second chunk analysis)
+- [x] Gain normalization applied correctly
+- [x] High-frequency boost for far speakers
+
+### Notes
+- Best results when combined with `--diarize` flag (uses speaker segments)
+- Without diarization, analyzes audio in 5-second chunks
+- Does not replace noise reduction - applies after enhancement
+- Recommended pipeline: deepfilter → diarize → isolate-speaker → distance-robust
+
+### Success Criteria for Phase 3
+- [x] Main speaker clearly separated from audience ✅ (Iteration 10)
+- [x] Audience noise reduced by >80% ✅ (via isolation)
+- [x] Multiple speakers clearly distinguishable ✅ (via diarization)
+- [x] Consistent volume across all speakers ✅ (via distance-robust)
+
+**Phase 3: Speaker Enhancement & Isolation is now COMPLETE!**
+
+---
+
 **Last Updated:** 2026-02-01

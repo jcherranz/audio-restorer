@@ -240,7 +240,7 @@ class SimpleEnhancer:
     def __init__(self, verbose: bool = True):
         self.verbose = verbose
     
-    def enhance(self, audio_path: Path, output_path: Path) -> Path:
+    def enhance(self, audio_path: Path, output_path: Path, **kwargs) -> Path:
         """Simple ffmpeg-based audio cleanup"""
         print(f"\n🔧 Applying ffmpeg filters: {audio_path.name}")
         
