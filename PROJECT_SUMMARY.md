@@ -8,16 +8,21 @@ A complete audio restoration pipeline that transforms poor-quality conference re
 
 ```
 audio-restorer/
-├── run.py              ← Main entry point (run this!)
-├── config.py           ← Settings and configuration
-├── compare.py          ← Comparison tool
-├── src/
-│   ├── downloader.py   ← YouTube video/audio downloader
-│   ├── audio_enhancer.py ← Audio processing & enhancement
-│   ├── video_merger.py   ← Video/audio recombination
-│   └── pipeline.py     ← Main orchestration
-├── output/             ← Enhanced files go here
-└── temp/               ← Temporary files (auto-cleaned)
+├── run.py                 ← Main entry point (run this!)
+├── config.py              ← Settings and configuration
+├── src/                   ← Core source code
+│   ├── downloader.py      ← YouTube video/audio downloader
+│   ├── audio_enhancer.py  ← Basic enhancement (ffmpeg)
+│   ├── ml_enhancer.py     ← PyTorch ML enhancement
+│   ├── deepfilter_enhancer.py  ← Neural noise suppression (best)
+│   ├── dereverb_enhancer.py    ← Room echo removal
+│   └── pipeline.py        ← Main orchestration
+├── tests/                 ← Tests and benchmarks
+├── tools/                 ← Utility tools
+│   ├── audio_compare.py   ← Compare audio files
+│   └── cleanup_outputs.py ← Clean old test files
+├── output/                ← Enhanced files go here
+└── temp/                  ← Temporary files (auto-cleaned)
 ```
 
 ## 🚀 How to Use
@@ -81,10 +86,15 @@ Edit `config.py` to customize:
 # Noise reduction strength (0.0 = none, 1.0 = aggressive)
 "noise_reduction_strength": 0.8
 
-# Enable specific enhancements
-"use_deepfilternet": True      # Neural noise suppression (requires torch)
-"use_spectral_gating": True    # Frequency-based removal
-"normalize": True              # Normalize levels
+# Enhancer type: simple, torch, torch_advanced, or deepfilter
+"enhancer_type": "torch_advanced"
+
+# Target loudness in LUFS (broadcast standard: -16)
+"target_loudness": -16
+
+# Filter frequencies
+"highpass_freq": 100    # Remove rumble
+"lowpass_freq": 12000   # Preserve speech clarity
 ```
 
 ## 🗺️ Roadmap & Iterative Improvements
@@ -96,23 +106,25 @@ Edit `config.py` to customize:
 - [x] Audio normalization
 - [x] Working CLI tool
 
-### 🔜 Phase 2 - Neural Enhancement (Next)
-- [ ] Install PyTorch + DeepFilterNet
-- [ ] Add ML-based noise suppression
-- [ ] Speech separation (isolate speaker from crowd)
-- [ ] Echo cancellation
+### ✅ Phase 2 - ML Enhancement (COMPLETE)
+- [x] Install PyTorch + DeepFilterNet
+- [x] Add ML-based noise suppression
+- [x] Voice Activity Detection (Silero VAD)
+- [x] SOTA quality metrics (DNSMOS, PESQ, STOI)
+- [x] De-reverberation support
+- [x] Comprehensive benchmark suite
 
-### 🔜 Phase 3 - Advanced Features
-- [ ] Batch processing multiple videos
+### 🔄 Phase 3 - Speech Enhancement (NEXT)
 - [ ] Speaker diarization (identify who is speaking)
-- [ ] Automatic transcription
-- [ ] GUI interface ( easier for non-technical users)
+- [ ] Speaker separation/isolation
+- [ ] Reduce crowd noise by >80%
+- [ ] Batch processing improvements
 
-### 🔜 Phase 4 - Professional Tools
+### 🔜 Phase 4 - Advanced Features (Future)
+- [ ] GUI interface
 - [ ] Real-time preview
-- [ ] Custom model training for your specific conferences
-- [ ] Integration with transcription services
-- [ ] Video quality enhancement (not just audio)
+- [ ] Custom model training
+- [ ] Automatic transcription
 
 ## 🎓 Learning Path
 
@@ -164,11 +176,14 @@ python run.py "URL" --audio-only
 
 ## 📈 Performance Benchmarks
 
-| Video Length | Mode | Processing Time | Output Size |
-|-------------|------|-----------------|-------------|
-| 1 hour | Audio only (quick) | ~70s | ~100 MB |
-| 1 hour | Audio only (ML) | ~5-10 min | ~100 MB |
-| 1 hour | Full video | ~2-3 min | ~500 MB |
+| Enhancer | Quality Score | SNR | Processing Time | Best For |
+|----------|--------------|-----|-----------------|----------|
+| deepfilter | 115.9 | 49.0 dB | ~2.2 min | Best quality (GPU recommended) |
+| torch_advanced | 81.0 | 28.5 dB | ~40s | Default, good balance |
+| torch | ~75 | ~25 dB | ~35s | Basic ML |
+| simple | 66.5 | 21.4 dB | ~3 min | Quick processing |
+
+*Benchmarked on 58-minute conference video*
 
 ## 💡 Tips for Conference Videos
 

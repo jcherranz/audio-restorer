@@ -50,6 +50,9 @@ python run.py "YOUR_YOUTUBE_URL" --noise-reduction 0.5
 | Flag | What it does |
 |------|--------------|
 | `--audio-only` | Download & enhance just the audio (faster, smaller files) |
+| `--enhancer deepfilter` | Use best neural enhancer (slower, best quality) |
+| `--enhancer torch_advanced` | Use default ML enhancer (balanced) |
+| `--dereverb` | Remove room echo (CPU-intensive, shorter files) |
 | `--quick` | Use ffmpeg filters only (no ML, faster) |
 | `--comparison` | Create side-by-side before/after video |
 | `--noise-reduction 0.8` | Set noise removal strength (0.0 to 1.0) |
@@ -127,8 +130,8 @@ After running, you'll see:
 1. ✅ You've already run your first restoration!
 2. 🎧 Listen to the result in `output/` folder
 3. 📖 Read `PROJECT_SUMMARY.md` for more details
-4. 🔧 Try different settings
-5. 🚀 When ready, install PyTorch for ML-based enhancement (even better quality)
+4. 🔧 Try different enhancers: `--enhancer deepfilter` for best quality
+5. 📊 Run benchmarks: `python tests/benchmark_enhancers.py`
 
 ---
 
