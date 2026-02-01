@@ -52,6 +52,7 @@ class AudioRestorationPipeline:
                  diarize: bool = False,
                  isolate_speaker: bool = False,
                  distance_robust: bool = False,
+                 speaker_agc: bool = False,
                  verbose: bool = True):
         """
         Initialize the pipeline.
@@ -69,6 +70,7 @@ class AudioRestorationPipeline:
             diarize: Perform speaker diarization (identify speakers)
             isolate_speaker: Isolate main speaker (remove others)
             distance_robust: Apply distance-robust enhancement (adaptive gain/EQ)
+            speaker_agc: Apply per-speaker automatic gain control
             verbose: Print progress messages
         """
         from config import ENHANCEMENT, DEREVERB
@@ -124,10 +126,7 @@ class AudioRestorationPipeline:
         if self.diarize_enabled:
             try:
                 from .diarization import SpeakerDiarizer
-                self.diarizer = SpeakerDiarizer(
-                    use_gpu=use_gpu,
-                    verbose=verbose
-                )
+                self.diarizer = SpeakerDiarizer(verbose=verbose)
                 if verbose:
                     print("Speaker diarization enabled")
             except ImportError as e:
@@ -162,6 +161,20 @@ class AudioRestorationPipeline:
                 if verbose:
                     print(f"⚠ Could not load distance enhancer: {e}")
                 self.distance_robust_enabled = False
+
+        # Per-speaker AGC (optional, normalizes each speaker's volume)
+        self.speaker_agc_enabled = speaker_agc
+        self.speaker_agc = None
+        if self.speaker_agc_enabled:
+            try:
+                from .speaker_agc import SpeakerAGC
+                self.speaker_agc = SpeakerAGC(verbose=verbose)
+                if verbose:
+                    print("Per-speaker AGC enabled")
+            except ImportError as e:
+                if verbose:
+                    print(f"⚠ Could not load speaker AGC: {e}")
+                self.speaker_agc_enabled = False
     
     def _create_enhancer(self, 
                          enhancer_type: str,
@@ -461,6 +474,32 @@ class AudioRestorationPipeline:
                         print(f"\n⚠ Distance-robust enhancement failed: {e}")
                         print("  Continuing without distance compensation")
 
+            # Step 8: Per-speaker AGC (optional)
+            if self.speaker_agc_enabled and self.speaker_agc:
+                try:
+                    print("\n" + "=" * 60)
+                    agc_output = self.output_dir / f"{audio_path.stem}_agc.wav"
+
+                    # Use diarization if available
+                    agc_result = self.speaker_agc.process(
+                        enhanced_audio_path,
+                        agc_output,
+                        diarization_json=diarization_output if diarization_output and diarization_output.exists() else None
+                    )
+
+                    # Replace enhanced audio with AGC version
+                    import shutil
+                    shutil.move(str(agc_output), str(enhanced_audio_path))
+
+                    if self.verbose:
+                        print(f"\n   Speakers normalized: {agc_result.num_speakers}")
+                        print(f"   Gain range: {agc_result.min_gain_applied_db:+.1f} to {agc_result.max_gain_applied_db:+.1f} dB")
+
+                except Exception as e:
+                    if self.verbose:
+                        print(f"\n⚠ Per-speaker AGC failed: {e}")
+                        print("  Continuing without speaker normalization")
+
             # Success!
             result.success = True
             result.processing_time = time.time() - start_time
@@ -479,6 +518,8 @@ class AudioRestorationPipeline:
                 print(f"   Diarization: {diarization_output}")
             if self.distance_robust_enabled:
                 print(f"   Distance-robust: Applied (adaptive gain/EQ)")
+            if self.speaker_agc_enabled:
+                print(f"   Speaker AGC: Applied (per-speaker normalization)")
             print("=" * 60)
             
             # Cleanup

@@ -1244,4 +1244,103 @@ python src/distance_enhancer.py input.wav -d diarization.json -o output.wav
 
 ---
 
+## [2026-02-01] Iteration 12: Per-Speaker Automatic Gain Control (COMPLETE)
+
+### Summary
+Added per-speaker automatic gain control (AGC) that normalizes each speaker's volume independently. Unlike distance-robust enhancement (which adjusts gain per segment based on estimated distance), this module analyzes each speaker's average loudness across all their segments and applies consistent gain correction.
+
+### What is Per-Speaker AGC?
+In multi-speaker recordings:
+- Different speakers have different natural voice levels
+- Some speakers may be closer/farther from the microphone
+- Recording levels may vary throughout the session
+
+Per-speaker AGC solves these issues by:
+1. Using diarization to identify all speakers
+2. Calculating each speaker's average loudness
+3. Determining gain adjustment needed for each speaker
+4. Applying speaker-specific gain with smooth transitions
+
+### Implementation
+- Created `src/speaker_agc.py` with:
+  - `SpeakerAGC` class - main processing class
+  - `SpeakerLoudness` dataclass - per-speaker statistics
+  - `AGCResult` dataclass - processing results
+  - Smooth crossfade transitions at speaker boundaries
+- Added `--speaker-agc` CLI flag to `run.py`
+- Integrated with pipeline (Step 8, after distance-robust)
+- Uses diarization results when available
+
+### Changes Made
+| File | Change |
+|------|--------|
+| `src/speaker_agc.py` | **NEW** - Per-speaker AGC module |
+| `src/pipeline.py` | Added `--speaker-agc` integration |
+| `run.py` | Added `--speaker-agc` CLI flag |
+
+### Usage
+```bash
+# With per-speaker AGC
+python run.py "https://youtu.be/cglDoG0GzyA" --audio-only --diarize --speaker-agc
+
+# Full pipeline with all speaker features
+python run.py "https://youtu.be/cglDoG0GzyA" --audio-only --enhancer deepfilter --diarize --speaker-agc
+
+# Standalone usage
+python src/speaker_agc.py input.wav -o output.wav
+python src/speaker_agc.py input.wav -d diarization.json -o output.wav
+```
+
+### Test Results
+**Reference Video:** https://youtu.be/cglDoG0GzyA (58 minutes)
+
+| Metric | Value |
+|--------|-------|
+| Speakers Detected | 5 |
+| Main Speaker | SPEAKER_00 (41.9% of talk time) |
+| Loudness Range (Before) | -16.1 to -17.5 dB |
+| Gain Adjustments | -2.5 to -3.9 dB |
+| Target Loudness | -20.0 dB |
+| All Speakers Normalized | ✅ |
+
+### Per-Speaker Analysis
+| Speaker | Original dB | Gain Applied | Segments | Duration |
+|---------|-------------|--------------|----------|----------|
+| SPEAKER_00 | -17.3 | -2.7 dB | 80 | 89.3s |
+| SPEAKER_04 | -17.1 | -2.9 dB | 39 | 48.6s |
+| SPEAKER_03 | -16.6 | -3.4 dB | 44 | 38.7s |
+| SPEAKER_01 | -16.1 | -3.9 dB | 26 | 19.4s |
+| SPEAKER_02 | -17.5 | -2.5 dB | 24 | 17.0s |
+
+### Technical Details
+- **Target Loudness:** -20.0 dB RMS (configurable)
+- **Max Gain Boost:** +15 dB (prevents noise amplification)
+- **Max Gain Reduction:** -10 dB (prevents over-attenuation)
+- **Crossfade:** 30ms transitions at speaker boundaries
+- **Clipping Prevention:** Output normalized to 0.95 peak
+
+### Verification
+- [x] Module imports successfully
+- [x] CLI `--speaker-agc` flag works
+- [x] Pipeline integration functional
+- [x] Works with diarization
+- [x] Gain normalization per speaker applied correctly
+- [x] Smooth transitions at speaker boundaries
+
+### Difference from Distance-Robust Enhancement
+| Feature | Distance-Robust | Per-Speaker AGC |
+|---------|-----------------|-----------------|
+| Granularity | Per segment | Per speaker (all segments) |
+| Basis | Estimated distance | Measured loudness |
+| Consistency | Varies by segment | Consistent per speaker |
+| Use case | Far/near compensation | Multi-speaker normalization |
+
+### Notes
+- Best results when combined with `--diarize` flag
+- Without diarization, runs its own diarization first
+- Can be combined with distance-robust for comprehensive normalization
+- Recommended for multi-speaker recordings (conferences, interviews, podcasts)
+
+---
+
 **Last Updated:** 2026-02-01

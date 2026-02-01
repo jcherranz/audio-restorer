@@ -479,7 +479,7 @@ class MyEnhancer(BaseEnhancer):
 | 9 | Speaker diarization | **Complete** |
 | 10 | Speaker isolation | **Complete** |
 | 11 | Distance-robust enhancement | **Complete** |
-| 12 | Automatic gain control per speaker | **Next** |
+| 12 | Per-speaker AGC | **Complete** |
 
 ### Available Enhancers (Best to Basic)
 1. `--enhancer deepfilter` - Neural network denoising (best quality)
@@ -492,6 +492,7 @@ class MyEnhancer(BaseEnhancer):
 - `--diarize` - Perform speaker diarization (identifies speakers)
 - `--isolate-speaker` - Isolate main speaker (removes audience/others)
 - `--distance-robust` - Apply distance-robust enhancement (adaptive gain/EQ per speaker distance)
+- `--speaker-agc` - Apply per-speaker automatic gain control (normalize each speaker's volume)
 
 ---
 

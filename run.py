@@ -143,6 +143,12 @@ Examples:
         help="Apply distance-robust enhancement (adaptive gain/EQ per speaker distance)"
     )
 
+    parser.add_argument(
+        "--speaker-agc",
+        action="store_true",
+        help="Apply per-speaker automatic gain control (normalize each speaker's volume)"
+    )
+
     return parser
 
 
@@ -188,6 +194,7 @@ def main():
         diarize=args.diarize,
         isolate_speaker=args.isolate_speaker,
         distance_robust=args.distance_robust,
+        speaker_agc=args.speaker_agc,
         verbose=not args.quiet
     )
     
