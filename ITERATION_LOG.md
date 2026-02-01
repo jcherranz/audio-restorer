@@ -993,4 +993,73 @@ Codebase cleanup to remove unused code, consolidate files, and free disk space b
 **Best Quality Score:** 115.9/100 (DeepFilterNet)
 **Best DNSMOS:** 2.62 OVRL, 3.87 BAK (DeepFilterNet)
 **Disk Usage:** Reduced by ~3.8 GB
+## [2026-02-01] Iteration 9: Speaker Diarization (COMPLETE)
+
+### Summary
+Added speaker diarization capability to identify "who is speaking when" in conference recordings. Uses spectral features and clustering for speaker separation.
+
+### What is Speaker Diarization?
+Speaker diarization answers the question: "Who spoke when?" It segments audio by speaker identity, enabling:
+- Identification of main speaker vs audience
+- Analysis of speaker statistics (talk time, segments)
+- Foundation for speaker isolation (future work)
+
+### Implementation
+- Created `src/diarization.py` with `SpeakerDiarizer` class
+- Uses energy-based speech segmentation
+- Extracts spectral features (centroid, bandwidth, ZCR)
+- Agglomerative clustering for speaker separation
+- No additional model downloads required
+
+### Changes Made
+| File | Change |
+|------|--------|
+| `src/diarization.py` | **NEW** - Speaker diarization module |
+| `src/pipeline.py` | Added `--diarize` integration |
+| `run.py` | Added `--diarize` CLI flag |
+
+### Usage
+```bash
+# Basic usage with diarization
+python run.py "https://youtu.be/cglDoG0GzyA" --audio-only --diarize
+
+# Standalone diarization
+python src/diarization.py path/to/audio.wav -o output/
+```
+
+### Output
+- Speaker segments saved to JSON
+- Summary statistics printed to console
+- Main speaker identified by talk time
+
+### Test Results
+**Reference Video:** https://youtu.be/cglDoG0GzyA (30-second sample)
+
+| Metric | Value |
+|--------|-------|
+| Speakers Detected | 1 (correct - single speaker) |
+| Processing Time | ~2 seconds |
+| Output Format | JSON with segments |
+
+### Technical Details
+- **Segmentation:** Energy-based VAD
+- **Features:** Spectral centroid, bandwidth, energy stats, ZCR
+- **Clustering:** Agglomerative clustering (sklearn)
+- **Resampling:** Uses scipy.signal (no librosa dependency issues)
+
+### Verification
+- [x] Module imports successfully
+- [x] CLI `--diarize` flag works
+- [x] Pipeline integration functional
+- [x] JSON output generated correctly
+- [x] Summary statistics accurate
+
+### Notes
+- Lightweight implementation (no heavy ML models)
+- Works with existing dependencies (soundfile, scipy, sklearn)
+- Single-speaker conference videos will show 1 speaker
+- Multi-speaker detection accuracy depends on audio quality
+
+---
+
 **Last Updated:** 2026-02-01

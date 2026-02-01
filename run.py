@@ -125,6 +125,12 @@ Examples:
         help="Enable de-reverberation (removes room echo) - applied after denoising"
     )
 
+    parser.add_argument(
+        "--diarize",
+        action="store_true",
+        help="Perform speaker diarization (identifies who is speaking when)"
+    )
+
     return parser
 
 
@@ -167,6 +173,7 @@ def main():
         fallback_to_simple=ENHANCEMENT.get("fallback_to_simple", True),
         keep_temp_files=args.keep_temp,
         dereverb=args.dereverb,
+        diarize=args.diarize,
         verbose=not args.quiet
     )
     

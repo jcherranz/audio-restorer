@@ -454,7 +454,8 @@ class MyEnhancer(BaseEnhancer):
 | 6 | SOTA metrics (DNSMOS, PESQ, STOI) | **Complete** |
 | 7 | ~~Resemble Enhance~~ | **REMOVED** (dependency issues) |
 | 8 | Comprehensive benchmark suite | **Complete** |
-| 9 | Pipeline optimization | **Next** |
+| 9 | Speaker diarization | **Complete** |
+| 10 | Speaker isolation | **Next** |
 
 ### Available Enhancers (Best to Basic)
 1. `--enhancer deepfilter` - Neural network denoising (best quality)
@@ -464,13 +465,14 @@ class MyEnhancer(BaseEnhancer):
 
 ### Optional Flags
 - `--dereverb` - Add de-reverberation (removes room echo, CPU-intensive)
+- `--diarize` - Perform speaker diarization (identifies speakers)
 
 ---
 
 **Remember:** This is an AUDIO QUALITY project. Video is secondary.
 Every iteration should make conference audio clearer and more intelligible.
 
-**Last updated by:** Cleanup - Post Iteration 8
-**Current Phase:** Cleanup Complete - Ready for Iteration 9
+**Last updated by:** Iteration 9 (Speaker Diarization)
+**Current Phase:** Phase 3 - Speaker Enhancement (Iteration 9 Complete)
 **Final Quality Score:** 115.9/100 (DeepFilterNet - exceeded all targets)
 **Optional:** --dereverb flag for room echo removal

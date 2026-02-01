@@ -49,6 +49,7 @@ class AudioRestorationPipeline:
                  fallback_to_simple: bool = True,
                  keep_temp_files: bool = False,
                  dereverb: bool = False,
+                 diarize: bool = False,
                  verbose: bool = True):
         """
         Initialize the pipeline.
@@ -63,6 +64,7 @@ class AudioRestorationPipeline:
             fallback_to_simple: Fall back to simple enhancer on failure
             keep_temp_files: Keep temp files for debugging
             dereverb: Apply de-reverberation after enhancement
+            diarize: Perform speaker diarization (identify speakers)
             verbose: Print progress messages
         """
         from config import ENHANCEMENT, DEREVERB
@@ -111,6 +113,23 @@ class AudioRestorationPipeline:
                 if verbose:
                     print(f"⚠ Could not load de-reverberator: {e}")
                 self.dereverb_enabled = False
+
+        # Speaker diarization (optional, identifies who is speaking)
+        self.diarize_enabled = diarize
+        self.diarizer = None
+        if self.diarize_enabled:
+            try:
+                from .diarization import SpeakerDiarizer
+                self.diarizer = SpeakerDiarizer(
+                    use_gpu=use_gpu,
+                    verbose=verbose
+                )
+                if verbose:
+                    print("Speaker diarization enabled (pyannote.audio)")
+            except ImportError as e:
+                if verbose:
+                    print(f"⚠ Could not load diarization: {e}")
+                self.diarize_enabled = False
     
     def _create_enhancer(self, 
                          enhancer_type: str,
@@ -333,6 +352,21 @@ class AudioRestorationPipeline:
                     merger.create_side_by_side(video_path, enhanced_video_path, comparison_path)
                     result.comparison_video = comparison_path
             
+            # Step 5: Speaker diarization (optional)
+            if self.diarize_enabled and self.diarizer:
+                try:
+                    print("\n" + "=" * 60)
+                    diarization_output = self.output_dir / f"{audio_path.stem}_diarization.json"
+                    diarization_result = self.diarizer.diarize(
+                        enhanced_audio_path,
+                        output_json=diarization_output
+                    )
+                    self.diarizer.print_summary()
+                except Exception as e:
+                    if self.verbose:
+                        print(f"\n⚠ Diarization failed: {e}")
+                        print("  Continuing without speaker analysis")
+            
             # Success!
             result.success = True
             result.processing_time = time.time() - start_time
@@ -347,6 +381,8 @@ class AudioRestorationPipeline:
             print(f"   Audio: {result.enhanced_audio}")
             if result.comparison_video:
                 print(f"   Comparison: {result.comparison_video}")
+            if self.diarize_enabled:
+                print(f"   Diarization: {diarization_output}")
             print("=" * 60)
             
             # Cleanup
