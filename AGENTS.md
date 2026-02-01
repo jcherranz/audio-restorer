@@ -281,6 +281,45 @@ cat ITERATION_LOG.md
 cat ROADMAP.md
 ```
 
+## 🌐 GitHub Integration
+
+**Repository:** https://github.com/jcherranz/audio-restorer
+
+### For AI Agents: Automated GitHub Operations
+
+**Setup (One-time per session):**
+```bash
+# Load GitHub credentials
+source ~/.config/github/audio-restorer.env
+
+# Configure git remote with token (for push)
+git remote set-url origin https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/${GITHUB_USERNAME}/${GITHUB_REPO}.git
+```
+
+**Common Operations:**
+```bash
+# Check status
+git status
+
+# Stage all changes
+git add .
+
+# Commit
+git commit -m "Descriptive commit message"
+
+# Push to GitHub
+git push origin main
+
+# Pull latest changes
+git pull origin main
+
+# Clean token from URL (after push)
+git remote set-url origin https://github.com/${GITHUB_USERNAME}/${GITHUB_REPO}.git
+```
+
+**Full Documentation:** See `docs/GITHUB_SETUP.md` for complete GitHub workflow and authentication methods.
+```
+
 ## Enhancer Interface Contract
 
 All enhancers must follow this interface (defined in `src/enhancer_base.py`):
