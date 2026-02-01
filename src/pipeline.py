@@ -50,6 +50,7 @@ class AudioRestorationPipeline:
                  keep_temp_files: bool = False,
                  dereverb: bool = False,
                  diarize: bool = False,
+                 isolate_speaker: bool = False,
                  verbose: bool = True):
         """
         Initialize the pipeline.
@@ -65,6 +66,7 @@ class AudioRestorationPipeline:
             keep_temp_files: Keep temp files for debugging
             dereverb: Apply de-reverberation after enhancement
             diarize: Perform speaker diarization (identify speakers)
+            isolate_speaker: Isolate main speaker (remove others)
             verbose: Print progress messages
         """
         from config import ENHANCEMENT, DEREVERB
@@ -125,11 +127,25 @@ class AudioRestorationPipeline:
                     verbose=verbose
                 )
                 if verbose:
-                    print("Speaker diarization enabled (pyannote.audio)")
+                    print("Speaker diarization enabled")
             except ImportError as e:
                 if verbose:
                     print(f"⚠ Could not load diarization: {e}")
                 self.diarize_enabled = False
+
+        # Speaker isolation (optional, removes other speakers/audience)
+        self.isolate_enabled = isolate_speaker
+        self.isolator = None
+        if self.isolate_enabled:
+            try:
+                from .speaker_isolation import SpeakerIsolator
+                self.isolator = SpeakerIsolator(verbose=verbose)
+                if verbose:
+                    print("Speaker isolation enabled")
+            except ImportError as e:
+                if verbose:
+                    print(f"⚠ Could not load speaker isolation: {e}")
+                self.isolate_enabled = False
     
     def _create_enhancer(self, 
                          enhancer_type: str,
@@ -353,6 +369,7 @@ class AudioRestorationPipeline:
                     result.comparison_video = comparison_path
             
             # Step 5: Speaker diarization (optional)
+            diarization_output = None
             if self.diarize_enabled and self.diarizer:
                 try:
                     print("\n" + "=" * 60)
@@ -366,6 +383,39 @@ class AudioRestorationPipeline:
                     if self.verbose:
                         print(f"\n⚠ Diarization failed: {e}")
                         print("  Continuing without speaker analysis")
+            
+            # Step 6: Speaker isolation (optional)
+            if self.isolate_enabled and self.isolator:
+                try:
+                    print("\n" + "=" * 60)
+                    isolated_output = self.output_dir / f"{audio_path.stem}_isolated.wav"
+                    
+                    # If we have diarization, use it; otherwise run diarization first
+                    if diarization_output and diarization_output.exists():
+                        isolation_result = self.isolator.isolate_main_speaker(
+                            enhanced_audio_path,
+                            diarization_output,
+                            isolated_output
+                        )
+                    else:
+                        isolation_result = self.isolator.isolate_with_diarization(
+                            enhanced_audio_path,
+                            isolated_output
+                        )
+                    
+                    # Replace enhanced audio with isolated version
+                    import shutil
+                    shutil.move(str(isolated_output), str(enhanced_audio_path))
+                    
+                    if self.verbose:
+                        print(f"\n   Isolated main speaker: {isolation_result.main_speaker}")
+                        print(f"   Retained: {isolation_result.retention_percentage:.1f}% of audio")
+                        print(f"   Removed: {timedelta(seconds=int(isolation_result.removed_duration))} of interference")
+                        
+                except Exception as e:
+                    if self.verbose:
+                        print(f"\n⚠ Speaker isolation failed: {e}")
+                        print("  Continuing with all speakers")
             
             # Success!
             result.success = True

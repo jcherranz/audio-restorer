@@ -131,6 +131,8 @@ Options:
   --audio-only          Process audio only (no video) - RECOMMENDED
   --enhancer TYPE       Choose: simple, torch, torch_advanced, deepfilter
   --dereverb            Remove room echo (slower, for short files)
+  --diarize             Perform speaker diarization (identify speakers)
+  --isolate-speaker     Isolate main speaker (removes audience/others)
   --comparison          Create side-by-side comparison (deprecated)
   --quick               Use only ffmpeg (faster, no ML)
   --noise-reduction N   Set noise reduction 0.0-1.0
@@ -250,7 +252,8 @@ Output Enhanced Video
 - [x] SOTA quality metrics (DNSMOS, PESQ, STOI)
 - [x] Benchmark suite
 - [x] Speaker diarization (Phase 3)
-- [ ] Speaker isolation (Phase 3 - Next)
+- [x] Speaker isolation (Phase 3)
+- [ ] Distance-robust enhancement (Phase 3 - Next)
 - [ ] GUI interface (future)
 - [ ] Real-time preview (future)
 

@@ -131,6 +131,12 @@ Examples:
         help="Perform speaker diarization (identifies who is speaking when)"
     )
 
+    parser.add_argument(
+        "--isolate-speaker",
+        action="store_true",
+        help="Isolate main speaker - removes audience and other speakers"
+    )
+
     return parser
 
 
@@ -174,6 +180,7 @@ def main():
         keep_temp_files=args.keep_temp,
         dereverb=args.dereverb,
         diarize=args.diarize,
+        isolate_speaker=args.isolate_speaker,
         verbose=not args.quiet
     )
     

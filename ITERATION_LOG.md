@@ -1062,4 +1062,73 @@ python src/diarization.py path/to/audio.wav -o output/
 
 ---
 
+## [2026-02-01] Iteration 10: Speaker Isolation (COMPLETE)
+
+### Summary
+Added speaker isolation to extract only the main speaker's audio, removing audience questions and other speakers.
+
+### What is Speaker Isolation?
+Speaker isolation uses diarization results to:
+1. Identify the main speaker (most talk time)
+2. Extract only their speech segments
+3. Remove/reduce audience, cross-talk, other speakers
+4. Create "clean" audio with just the presenter
+
+### Implementation
+- Created `src/speaker_isolation.py` with `SpeakerIsolator` class
+- Uses diarization JSON to identify main speaker
+- Extracts and concatenates main speaker segments
+- Applies crossfades for smooth transitions
+- Works standalone or integrated with pipeline
+
+### Changes Made
+| File | Change |
+|------|--------|
+| `src/speaker_isolation.py` | **NEW** - Speaker isolation module |
+| `src/pipeline.py` | Added `--isolate-speaker` integration |
+| `run.py` | Added `--isolate-speaker` CLI flag |
+
+### Usage
+```bash
+# Isolate main speaker only
+python run.py "https://youtu.be/cglDoG0GzyA" --audio-only --isolate-speaker
+
+# Combined with enhancement and diarization
+python run.py "https://youtu.be/cglDoG0GzyA" --audio-only --enhancer deepfilter --diarize --isolate-speaker
+
+# Standalone isolation with existing diarization
+python src/speaker_isolation.py input.wav -d diarization.json -o output.wav
+```
+
+### Test Results
+**Reference Video:** https://youtu.be/cglDoG0GzyA (30-second sample)
+
+| Metric | Value |
+|--------|-------|
+| Speakers Detected | 1 (single speaker conference) |
+| Audio Retained | 100% (correct - all speech is main speaker) |
+| Processing Time | ~3 seconds |
+| Output | Isolated WAV file |
+
+### Technical Details
+- **Diarization:** Uses existing SpeakerDiarizer
+- **Main Speaker ID:** By total talk time
+- **Segment Joining:** Crossfade (50ms) for smooth transitions
+- **Min Segment:** 300ms (removes very short segments)
+
+### Verification
+- [x] Module imports successfully
+- [x] CLI `--isolate-speaker` flag works
+- [x] Pipeline integration functional
+- [x] Works with existing diarization
+- [x] Works standalone (auto-diarizes)
+
+### Notes
+- Single-speaker videos retain ~100% (expected)
+- Multi-speaker videos will show retention <100%
+- Isolation happens AFTER enhancement (best quality)
+- Output file replaces enhanced file (clean workflow)
+
+---
+
 **Last Updated:** 2026-02-01
