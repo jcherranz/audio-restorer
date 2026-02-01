@@ -53,6 +53,10 @@ class AudioRestorationPipeline:
                  isolate_speaker: bool = False,
                  distance_robust: bool = False,
                  speaker_agc: bool = False,
+                 deess: bool = False,
+                 remove_hum: bool = False,
+                 remove_clicks: bool = False,
+                 comfort_noise: bool = False,
                  verbose: bool = True):
         """
         Initialize the pipeline.
@@ -71,6 +75,10 @@ class AudioRestorationPipeline:
             isolate_speaker: Isolate main speaker (remove others)
             distance_robust: Apply distance-robust enhancement (adaptive gain/EQ)
             speaker_agc: Apply per-speaker automatic gain control
+            deess: Apply de-essing to reduce sibilant sounds (/s/, /sh/)
+            remove_hum: Remove power line hum (50/60 Hz) and harmonics
+            remove_clicks: Remove clicks and pops (transient artifacts)
+            comfort_noise: Add comfort noise to silence regions
             verbose: Print progress messages
         """
         from config import ENHANCEMENT, DEREVERB
@@ -175,7 +183,63 @@ class AudioRestorationPipeline:
                 if verbose:
                     print(f"⚠ Could not load speaker AGC: {e}")
                 self.speaker_agc_enabled = False
-    
+
+        # De-essing (optional, reduces harsh sibilant sounds)
+        self.deess_enabled = deess
+        self.deesser = None
+        if self.deess_enabled:
+            try:
+                from .deesser import DeEsser
+                self.deesser = DeEsser(verbose=verbose)
+                if verbose:
+                    print("De-essing enabled")
+            except ImportError as e:
+                if verbose:
+                    print(f"⚠ Could not load de-esser: {e}")
+                self.deess_enabled = False
+
+        # Hum removal (optional, removes power line hum)
+        self.remove_hum_enabled = remove_hum
+        self.hum_remover = None
+        if self.remove_hum_enabled:
+            try:
+                from .hum_remover import HumRemover
+                self.hum_remover = HumRemover(verbose=verbose)
+                if verbose:
+                    print("Hum removal enabled (auto-detect 50/60 Hz)")
+            except ImportError as e:
+                if verbose:
+                    print(f"⚠ Could not load hum remover: {e}")
+                self.remove_hum_enabled = False
+
+        # Click removal (optional, removes transient artifacts)
+        self.remove_clicks_enabled = remove_clicks
+        self.click_remover = None
+        if self.remove_clicks_enabled:
+            try:
+                from .click_remover import ClickRemover
+                self.click_remover = ClickRemover(verbose=verbose)
+                if verbose:
+                    print("Click removal enabled")
+            except ImportError as e:
+                if verbose:
+                    print(f"⚠ Could not load click remover: {e}")
+                self.remove_clicks_enabled = False
+
+        # Comfort noise (optional, fills silence with subtle noise)
+        self.comfort_noise_enabled = comfort_noise
+        self.comfort_noise_generator = None
+        if self.comfort_noise_enabled:
+            try:
+                from .comfort_noise import ComfortNoiseGenerator
+                self.comfort_noise_generator = ComfortNoiseGenerator(verbose=verbose)
+                if verbose:
+                    print("Comfort noise enabled (pink noise at -60dB)")
+            except ImportError as e:
+                if verbose:
+                    print(f"⚠ Could not load comfort noise generator: {e}")
+                self.comfort_noise_enabled = False
+
     def _create_enhancer(self, 
                          enhancer_type: str,
                          noise_reduction_strength: float,
@@ -346,11 +410,37 @@ class AudioRestorationPipeline:
             
             result.original_audio = audio_path
             result.original_video = video_path or audio_path
-            
+
+            # Pre-processing: Hum removal (if enabled, before main enhancement)
+            if self.remove_hum_enabled and self.hum_remover:
+                try:
+                    print("\n" + "=" * 60)
+                    hum_free_path = self.output_dir / f"{audio_path.stem}_nohum.wav"
+                    self.hum_remover.process(audio_path, hum_free_path)
+                    # Use hum-free audio for subsequent processing
+                    audio_path = hum_free_path
+                except Exception as e:
+                    if self.verbose:
+                        print(f"\n⚠ Hum removal failed: {e}")
+                        print("  Continuing with original audio")
+
+            # Pre-processing: Click removal (if enabled, before main enhancement)
+            if self.remove_clicks_enabled and self.click_remover:
+                try:
+                    print("\n" + "=" * 60)
+                    declicked_path = self.output_dir / f"{audio_path.stem}_declicked.wav"
+                    self.click_remover.process(audio_path, declicked_path)
+                    # Use declicked audio for subsequent processing
+                    audio_path = declicked_path
+                except Exception as e:
+                    if self.verbose:
+                        print(f"\n⚠ Click removal failed: {e}")
+                        print("  Continuing with previous audio")
+
             # Step 2: Enhance audio
             print("\n" + "=" * 60)
             enhanced_audio_path = self.output_dir / f"{audio_path.stem}_enhanced.wav"
-            
+
             try:
                 # Try primary enhancer
                 self.enhancer.enhance(audio_path, enhanced_audio_path, target_sr=self.sample_rate)
@@ -500,6 +590,40 @@ class AudioRestorationPipeline:
                         print(f"\n⚠ Per-speaker AGC failed: {e}")
                         print("  Continuing without speaker normalization")
 
+            # Step 9: De-essing (optional, reduces sibilant harshness)
+            if self.deess_enabled and self.deesser:
+                try:
+                    print("\n" + "=" * 60)
+                    deess_output = self.output_dir / f"{audio_path.stem}_deessed.wav"
+
+                    self.deesser.process(enhanced_audio_path, deess_output)
+
+                    # Replace enhanced audio with de-essed version
+                    import shutil
+                    shutil.move(str(deess_output), str(enhanced_audio_path))
+
+                except Exception as e:
+                    if self.verbose:
+                        print(f"\n⚠ De-essing failed: {e}")
+                        print("  Continuing without de-essing")
+
+            # Step 10: Comfort noise (optional, fills silence with subtle noise)
+            if self.comfort_noise_enabled and self.comfort_noise_generator:
+                try:
+                    print("\n" + "=" * 60)
+                    comfort_output = self.output_dir / f"{audio_path.stem}_comfort.wav"
+
+                    self.comfort_noise_generator.process(enhanced_audio_path, comfort_output)
+
+                    # Replace enhanced audio with comfort noise version
+                    import shutil
+                    shutil.move(str(comfort_output), str(enhanced_audio_path))
+
+                except Exception as e:
+                    if self.verbose:
+                        print(f"\n⚠ Comfort noise failed: {e}")
+                        print("  Continuing without comfort noise")
+
             # Success!
             result.success = True
             result.processing_time = time.time() - start_time
@@ -520,6 +644,14 @@ class AudioRestorationPipeline:
                 print(f"   Distance-robust: Applied (adaptive gain/EQ)")
             if self.speaker_agc_enabled:
                 print(f"   Speaker AGC: Applied (per-speaker normalization)")
+            if self.deess_enabled:
+                print(f"   De-essing: Applied (sibilance reduction)")
+            if self.remove_hum_enabled:
+                print(f"   Hum removal: Applied (50/60Hz notch filter)")
+            if self.remove_clicks_enabled:
+                print(f"   Click removal: Applied (transient detection)")
+            if self.comfort_noise_enabled:
+                print(f"   Comfort noise: Applied (pink noise at -60dB)")
             print("=" * 60)
             
             # Cleanup

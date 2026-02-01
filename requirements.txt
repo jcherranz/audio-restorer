@@ -9,6 +9,7 @@ librosa>=0.10.1
 soundfile>=0.12.1
 pydub>=0.25.1
 noisereduce>=3.0.0
+scipy>=1.10.0            # Signal processing (filters, notch, etc.)
 
 # AI/ML for audio enhancement
 torch>=2.0.0

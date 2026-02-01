@@ -481,6 +481,18 @@ class MyEnhancer(BaseEnhancer):
 | 11 | Distance-robust enhancement | **Complete** |
 | 12 | Per-speaker AGC | **Complete** |
 
+### Phase 4: Audio Quality Refinement (In Progress)
+| # | Iteration | Status |
+|---|-----------|--------|
+| 13 | scipy dependency + DeepFilterNet strength | **Complete** |
+| 14 | Multi-video test suite | **Complete** |
+| 15 | De-essing (sibilance control) | **Complete** |
+| 16 | Hum removal (50/60Hz) | **Complete** |
+| 17 | Click/pop removal | **Complete** |
+| 18 | Comfort noise | **Complete** |
+| 19 | Processing chain optimization | Pending |
+| 20 | Quality tracking/DNSMOS target | Pending |
+
 ### Available Enhancers (Best to Basic)
 1. `--enhancer deepfilter` - Neural network denoising (best quality)
 2. `--enhancer torch_advanced` - PyTorch + Silero VAD (default)
@@ -493,13 +505,17 @@ class MyEnhancer(BaseEnhancer):
 - `--isolate-speaker` - Isolate main speaker (removes audience/others)
 - `--distance-robust` - Apply distance-robust enhancement (adaptive gain/EQ per speaker distance)
 - `--speaker-agc` - Apply per-speaker automatic gain control (normalize each speaker's volume)
+- `--deess` - Reduce harsh sibilant sounds (/s/, /sh/)
+- `--remove-hum` - Remove power line hum (50/60Hz + harmonics)
+- `--remove-clicks` - Remove clicks and pops (transient artifacts)
+- `--comfort-noise` - Add comfort noise to silence (prevents dead air)
 
 ---
 
 **Remember:** This is an AUDIO QUALITY project. Video is secondary.
 Every iteration should make conference audio clearer and more intelligible.
 
-**Last updated by:** Iteration 11 (Distance-Robust Enhancement)
-**Current Phase:** Phase 3 - Speaker Enhancement COMPLETE (Iterations 9-11)
+**Last updated by:** Iteration 18 (Comfort Noise)
+**Current Phase:** Phase 4 - Audio Quality Refinement (Iterations 13-18 Complete)
 **Final Quality Score:** 115.9/100 (DeepFilterNet - exceeded all targets)
-**Optional:** --dereverb flag for room echo removal
+**New Features:** De-essing, hum removal, click removal, comfort noise

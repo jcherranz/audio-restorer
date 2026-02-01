@@ -61,8 +61,9 @@ class DeepFilterNetEnhancer:
         Initialize DeepFilterNet enhancer.
 
         Args:
-            noise_reduction_strength: Not directly used by DeepFilterNet,
-                but kept for interface compatibility (0.0-1.0)
+            noise_reduction_strength: Controls how much of the enhanced audio
+                to mix with original (0.0=original, 1.0=fully enhanced).
+                Lower values preserve more speech quality at cost of noise.
             use_gpu: Use GPU acceleration if available
             verbose: Print progress messages
             post_filter: Apply additional post-filtering (can help with
@@ -208,11 +209,16 @@ class DeepFilterNetEnhancer:
             if self.verbose:
                 print("  Converted to mono")
 
+        # Store original audio for strength mixing (before processing)
+        original_audio = audio.copy()
+
         # Resample to DeepFilterNet's native rate (48kHz)
         if orig_sr != self.NATIVE_SR:
             if self.verbose:
                 print(f"  Resampling: {orig_sr}Hz -> {self.NATIVE_SR}Hz")
             audio = self._resample(audio, orig_sr, self.NATIVE_SR)
+            # Also resample original for mixing later
+            original_audio = self._resample(original_audio, orig_sr, self.NATIVE_SR)
 
         # Process in chunks to avoid GPU memory issues
         # 30 seconds per chunk with 1 second overlap for smooth transitions
@@ -275,6 +281,16 @@ class DeepFilterNetEnhancer:
 
         if self.verbose:
             print("  Neural denoising complete")
+
+        # Apply noise reduction strength (mix enhanced with original)
+        # strength=1.0 means fully enhanced, strength=0.5 means 50% mix
+        if self.noise_reduction_strength < 1.0:
+            strength = self.noise_reduction_strength
+            # Ensure original_audio matches enhanced length (may differ slightly)
+            min_len = min(len(enhanced), len(original_audio))
+            enhanced = enhanced[:min_len] * strength + original_audio[:min_len] * (1 - strength)
+            if self.verbose:
+                print(f"  Applied strength mixing: {strength*100:.0f}% enhanced, {(1-strength)*100:.0f}% original")
 
         # Resample back to original rate if needed
         if orig_sr != self.NATIVE_SR:

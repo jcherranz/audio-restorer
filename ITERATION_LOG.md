@@ -1343,4 +1343,474 @@ python src/speaker_agc.py input.wav -d diarization.json -o output.wav
 
 ---
 
+## [2026-02-01] Iteration 13: Fix scipy Dependency & DeepFilterNet Strength
+
+### Summary
+Fixed missing scipy dependency and implemented configurable noise reduction strength for DeepFilterNet. Previously, the `noise_reduction_strength` parameter was accepted but not used. Now it controls mixing between enhanced and original audio.
+
+### Problem Identified
+1. **scipy used but not in requirements.txt** - `speaker_agc.py` imports `from scipy import signal` but scipy was not listed in dependencies
+2. **DeepFilterNet strength parameter ignored** - The `noise_reduction_strength` parameter (0.0-1.0) was stored but never applied
+3. **DNSMOS SIG score 2.95** - Speech quality below midpoint, possibly due to over-processing
+
+### Solution
+1. Added `scipy>=1.10.0` to requirements.txt
+2. Implemented strength-based mixing in DeepFilterNet:
+   - strength=1.0: Fully enhanced (default behavior)
+   - strength=0.8: 80% enhanced + 20% original (preserves more speech quality)
+   - strength=0.5: 50/50 mix (significant original preservation)
+
+### Changes Made
+| File | Change |
+|------|--------|
+| `requirements.txt` | Added `scipy>=1.10.0` |
+| `src/deepfilter_enhancer.py` | Implemented strength mixing after neural denoising |
+
+### Technical Implementation
+```python
+# After neural denoising, mix enhanced with original based on strength
+if self.noise_reduction_strength < 1.0:
+    strength = self.noise_reduction_strength
+    enhanced = enhanced * strength + original * (1 - strength)
+```
+
+### Usage
+```bash
+# Full enhancement (default)
+python run.py "URL" --audio-only --enhancer deepfilter
+
+# Reduced enhancement (preserves more speech)
+python run.py "URL" --audio-only --enhancer deepfilter --noise-reduction 0.7
+
+# Minimal enhancement (mostly original)
+python run.py "URL" --audio-only --enhancer deepfilter --noise-reduction 0.5
+```
+
+### Expected Impact
+- **Lower strength values** should improve DNSMOS SIG score (speech quality)
+- **Higher strength values** provide maximum noise reduction (better BAK score)
+- Users can now tune the tradeoff between noise reduction and speech preservation
+
+### Verification
+- [x] scipy installs correctly: `pip install scipy`
+- [x] DeepFilterNetEnhancer accepts strength parameter
+- [x] Syntax check passes
+- [ ] Quality test with different strength values (requires full run)
+
+### Recommended Next Step
+Test with reference video at different strength values (0.6, 0.7, 0.8, 0.9, 1.0) and measure DNSMOS SIG to find optimal default.
+
+---
+
+## [2026-02-01] Iteration 14: Multi-Video Test Suite
+
+### Summary
+Created multi-video benchmark infrastructure to validate improvements work across diverse recordings, not just the single reference video.
+
+### Problem Identified
+- Testing only on ONE video (n=1) is statistically invalid
+- Can't confirm improvements generalize to different:
+  - Noise types
+  - Speaker voices
+  - Room acoustics
+  - Recording quality
+
+### Solution
+Created comprehensive multi-video testing framework:
+1. `tests/reference_videos.json` - Test video library with metadata
+2. `tests/multi_video_benchmark.py` - Automated multi-video testing
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `tests/reference_videos.json` | Test video library with categories and metadata |
+| `tests/multi_video_benchmark.py` | Multi-video benchmark runner with aggregate stats |
+
+### Features
+- **Video Library**: JSON file with categorized test videos
+- **Aggregate Statistics**: Mean, std dev across all videos
+- **Per-Enhancer Comparison**: Side-by-side quality metrics
+- **DNSMOS Integration**: Optional SOTA metrics per video
+- **Caching**: Reuses downloaded audio for faster re-runs
+- **Organized Output**: Separate directory per video/enhancer
+
+### Usage
+```bash
+# Test with 3 videos (default)
+python tests/multi_video_benchmark.py
+
+# Test with 5 videos and SOTA metrics
+python tests/multi_video_benchmark.py --videos 5 --sota
+
+# Test specific enhancers
+python tests/multi_video_benchmark.py --enhancers deepfilter torch_advanced
+
+# Quick mode (faster)
+python tests/multi_video_benchmark.py --quick
+```
+
+### Output Structure
+```
+benchmarks/multi_video_YYYYMMDD_HHMMSS/
+├── summary.json          # Aggregate statistics
+├── summary.txt           # Human-readable report
+└── video_<id>/
+    ├── reference_<id>.wav
+    ├── simple/enhanced_simple.wav
+    ├── torch_advanced/enhanced_torch_advanced.wav
+    └── deepfilter/enhanced_deepfilter.wav
+```
+
+### Example Output
+```
+MULTI-VIDEO BENCHMARK SUMMARY
+================================================================================
+Enhancer        Pass   Quality      SNR          Clarity      Time
+--------------------------------------------------------------------------------
+deepfilter*     3/3    115.2 ± 5.3  48.5 ± 2.1   0.72 ± 0.03  45.2s
+torch_advanced  3/3     80.5 ± 4.1  28.2 ± 1.8   0.64 ± 0.02  12.3s
+simple          3/3     65.8 ± 3.2  21.1 ± 1.5   0.58 ± 0.04   8.1s
+--------------------------------------------------------------------------------
+* = Best quality score
+```
+
+### Verification
+- [x] reference_videos.json loads correctly
+- [x] multi_video_benchmark.py syntax valid
+- [x] Aggregate statistics calculated
+- [ ] Full multi-video run (requires download)
+
+### Video Categories
+| Category | Description |
+|----------|-------------|
+| conference | Formal presentations, single main speaker |
+| panel | Multiple speakers taking turns |
+| interview | Two-person conversation |
+| webinar | Screen share with voice |
+| informal | Casual recording |
+| music_video | Clean audio (baseline/artifact test) |
+
+### Notes
+- Start with 3 videos for quick validation
+- Use 5+ videos for statistical significance
+- Add new test videos by editing reference_videos.json
+- Videos are cached after first download
+
+---
+
+## [2026-02-01] Iteration 15: De-Essing (Sibilance Control)
+
+### Summary
+Implemented de-esser module to reduce harsh sibilant sounds (/s/, /sh/, /ch/, /z/) that can be fatiguing and reduce speech clarity. Uses split-band compression targeting the 4-10 kHz frequency range.
+
+### Problem Identified
+- DNSMOS SIG score (2.95) indicates speech quality is degraded
+- Harsh sibilants can make speech fatiguing to listen to
+- No existing sibilance control in the pipeline
+
+### Technical Approach
+Split-band compression:
+1. Extract sibilant frequency band (4-10 kHz) using bandpass filter
+2. Calculate amplitude envelope with fast attack (1ms) / slow release (50ms)
+3. Apply compression when envelope exceeds threshold
+4. Recombine with unprocessed low frequencies
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/deesser.py` | De-esser module with split-band compression |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `run.py` | Added `--deess` CLI flag |
+| `src/pipeline.py` | Added deess parameter and Step 9 integration |
+
+### Parameters
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `threshold_db` | -20.0 | Level above which compression starts |
+| `ratio` | 4.0 | Compression ratio (4:1 typical) |
+| `attack_ms` | 1.0 | Fast attack catches sibilants |
+| `release_ms` | 50.0 | Moderate release avoids pumping |
+| `low_freq` | 4000 | Lower bound of sibilant band |
+| `high_freq` | 10000 | Upper bound of sibilant band |
+
+### Usage
+```bash
+# With de-essing
+python run.py "https://youtu.be/VIDEO_ID" --audio-only --deess
+
+# Combined with enhancement
+python run.py "URL" --audio-only --enhancer deepfilter --deess
+
+# Standalone
+python src/deesser.py input.wav -o output.wav --threshold -15
+```
+
+### Expected Impact
+- Reduced harshness in sibilant consonants
+- Improved DNSMOS SIG score (+0.1 to +0.2)
+- Less listener fatigue
+- Better clarity perception
+
+### Verification
+- [x] Module imports successfully
+- [x] CLI `--deess` flag works
+- [x] Pipeline integration functional
+- [x] Split-band filtering works correctly
+- [ ] Quality improvement measured (requires test run)
+
+### Notes
+- De-essing is applied after primary enhancement and AGC
+- Works with any sample rate (auto-adjusts frequency bounds)
+- Preserves natural speech quality while reducing harshness
+- Can be adjusted with --threshold for more/less aggressive reduction
+
+---
+
+## [2026-02-01] Iteration 16: Hum Removal (50/60Hz Notch Filter)
+
+### Summary
+Implemented hum removal module to remove power line hum (50/60 Hz) and its harmonics using cascaded IIR notch filters. Auto-detects whether hum is 50 Hz (Europe/Asia) or 60 Hz (Americas).
+
+### Problem Identified
+- Power line hum from electrical interference can persist in recordings
+- Conference room audio often picks up hum from:
+  - HVAC systems
+  - Fluorescent lighting
+  - Ground loops
+  - Nearby electrical equipment
+
+### Technical Approach
+Cascaded IIR notch filters:
+1. Auto-detect hum frequency (50 vs 60 Hz) using FFT analysis
+2. Apply narrow notch filter at fundamental frequency
+3. Apply notch filters at harmonics (120/180/240/300 Hz for 60Hz)
+4. Use high Q factor (30) for minimal speech impact
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/hum_remover.py` | Hum removal with cascaded notch filters |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `run.py` | Added `--remove-hum` CLI flag |
+| `src/pipeline.py` | Added remove_hum parameter and pre-processing step |
+
+### Parameters
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `fundamental_freq` | 60.0 | Base frequency (auto-detected by default) |
+| `num_harmonics` | 5 | Number of harmonics to remove |
+| `q_factor` | 30.0 | Notch width (higher = narrower) |
+| `auto_detect` | True | Auto-detect 50 vs 60 Hz |
+
+### Usage
+```bash
+# With hum removal
+python run.py "https://youtu.be/VIDEO_ID" --audio-only --remove-hum
+
+# Combined with enhancement
+python run.py "URL" --audio-only --enhancer deepfilter --remove-hum
+
+# Standalone
+python src/hum_remover.py input.wav -o output.wav
+python src/hum_remover.py input.wav --freq 50 --harmonics 6
+```
+
+### Processing Order
+Hum removal is applied BEFORE main enhancement:
+```
+Input → Hum Removal → DeepFilterNet → De-reverb → ... → Output
+```
+
+This ensures the neural network doesn't learn to "preserve" the hum.
+
+### Expected Impact
+- Cleaner background (improved DNSMOS BAK score)
+- Reduced low-frequency interference
+- Better enhancement results (cleaner input = better output)
+
+### Verification
+- [x] Module imports successfully
+- [x] CLI `--remove-hum` flag works
+- [x] Pipeline integration functional
+- [x] Auto-detection of 50/60 Hz works
+- [x] Cascaded notch filters applied correctly
+- [ ] Quality improvement measured (requires test run)
+
+### Notes
+- Hum removal is applied early (before main enhancement)
+- Auto-detection compares energy at 50 vs 60 Hz
+- Q=30 removes hum without affecting speech (notch is ~2Hz wide)
+- Works with any sample rate
+
+---
+
+## [2026-02-01] Iteration 17: Click/Pop Removal
+
+### Summary
+Implemented click/pop removal module to detect and remove transient artifacts using peak detection and cubic spline interpolation.
+
+### Problem Identified
+- Digital artifacts, microphone pops, and mouth clicks can degrade perceived quality
+- These artifacts hurt DNSMOS SIG score (speech signal quality)
+- No existing click removal in the pipeline
+
+### Technical Approach
+Peak detection + interpolation:
+1. Calculate local RMS in sliding window (50ms default)
+2. Detect samples exceeding RMS by threshold (15 dB default)
+3. Group detected samples into click regions
+4. Replace click regions with cubic spline interpolation from surrounding context
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/click_remover.py` | Click detection and interpolation |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `run.py` | Added `--remove-clicks` CLI flag |
+| `src/pipeline.py` | Added remove_clicks parameter and pre-processing step |
+
+### Parameters
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `threshold_db` | 15.0 | Detection threshold above local RMS |
+| `min_click_ms` | 0.5 | Minimum click duration to detect |
+| `max_click_ms` | 10.0 | Maximum click duration to fix |
+| `window_ms` | 50.0 | Window for local RMS calculation |
+
+### Usage
+```bash
+# With click removal
+python run.py "https://youtu.be/VIDEO_ID" --audio-only --remove-clicks
+
+# Combined with other pre-processing
+python run.py "URL" --audio-only --remove-hum --remove-clicks --enhancer deepfilter
+
+# Standalone
+python src/click_remover.py input.wav -o output.wav
+python src/click_remover.py input.wav --threshold 12  # More sensitive
+```
+
+### Processing Order
+Click removal is applied BEFORE main enhancement:
+```
+Input → Hum Removal → Click Removal → DeepFilterNet → ... → Output
+```
+
+### Expected Impact
+- Reduced transient artifacts
+- Improved DNSMOS SIG score (+0.1)
+- Cleaner speech signal
+
+### Verification
+- [x] Module imports successfully
+- [x] CLI `--remove-clicks` flag works
+- [x] Pipeline integration functional
+- [x] Peak detection works correctly
+- [x] Cubic spline interpolation fills clicks smoothly
+- [ ] Quality improvement measured (requires test run)
+
+### Notes
+- Click removal is applied early (before main enhancement)
+- Works best on recordings with obvious clicks/pops
+- Threshold can be lowered for more aggressive detection
+- Too low threshold may affect speech transients
+
+---
+
+## [2026-02-01] Iteration 18: Comfort Noise Generator
+
+### Summary
+Implemented comfort noise generator to add subtle pink noise during silence regions, preventing the "dead air" effect from aggressive noise reduction.
+
+### Problem Identified
+- After aggressive noise reduction, silence can sound unnaturally "dead"
+- Sudden transitions from noise to silence are jarring
+- Processing artifacts become more noticeable without background noise
+
+### Technical Approach
+Pink noise insertion with crossfades:
+1. Detect silence regions (frames below -45 dB threshold)
+2. Generate pink (1/f) noise using Voss-McCartney algorithm
+3. Scale noise to target level (-60 dB - barely perceptible)
+4. Insert noise with smooth crossfades (20ms) at boundaries
+
+### Why Pink Noise?
+- Pink noise has equal energy per octave (more natural than white noise)
+- Sounds similar to ambient room tone
+- Less "hissy" than white noise
+- Standard choice for professional audio masking
+
+### Files Created
+| File | Purpose |
+|------|---------|
+| `src/comfort_noise.py` | Pink noise generation and insertion |
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `run.py` | Added `--comfort-noise` CLI flag |
+| `src/pipeline.py` | Added comfort_noise parameter and Step 10 |
+
+### Parameters
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `target_level_db` | -60.0 | Noise level (very quiet) |
+| `silence_threshold_db` | -45.0 | Level below which audio is silence |
+| `min_silence_ms` | 100.0 | Minimum silence duration to fill |
+| `crossfade_ms` | 20.0 | Transition time for smooth blending |
+| `spectrum_shape` | "pink" | Noise type (pink or white) |
+
+### Usage
+```bash
+# With comfort noise
+python run.py "https://youtu.be/VIDEO_ID" --audio-only --comfort-noise
+
+# Full pipeline with all new features
+python run.py "URL" --audio-only --enhancer deepfilter \
+    --remove-hum --remove-clicks --deess --comfort-noise
+
+# Standalone
+python src/comfort_noise.py input.wav -o output.wav
+python src/comfort_noise.py input.wav --level -55 --noise-type white
+```
+
+### Processing Order
+Comfort noise is applied LAST (after all other processing):
+```
+Input → Hum Removal → Click Removal → DeepFilterNet → De-reverb →
+Diarize → Isolate → Distance → AGC → De-ess → Comfort Noise → Output
+```
+
+### Expected Impact
+- More natural-sounding silence
+- Masked processing artifacts
+- Better listening experience
+- No impact on speech quality (only affects silence)
+
+### Verification
+- [x] Module imports successfully
+- [x] CLI `--comfort-noise` flag works
+- [x] Pipeline integration functional
+- [x] Pink noise generation works
+- [x] Silence detection works
+- [x] Crossfade transitions are smooth
+- [ ] Perceptual improvement (requires listening test)
+
+### Notes
+- Comfort noise at -60 dB is barely perceptible
+- Only affects silence regions, not speech
+- Can increase level to -55 dB if more masking needed
+- Pink noise matches ambient room tone better than white
+
+---
+
 **Last Updated:** 2026-02-01

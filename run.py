@@ -149,6 +149,30 @@ Examples:
         help="Apply per-speaker automatic gain control (normalize each speaker's volume)"
     )
 
+    parser.add_argument(
+        "--deess",
+        action="store_true",
+        help="Apply de-essing to reduce harsh sibilant sounds (/s/, /sh/)"
+    )
+
+    parser.add_argument(
+        "--remove-hum",
+        action="store_true",
+        help="Remove power line hum (50/60 Hz) and harmonics"
+    )
+
+    parser.add_argument(
+        "--remove-clicks",
+        action="store_true",
+        help="Remove clicks and pops (transient artifacts)"
+    )
+
+    parser.add_argument(
+        "--comfort-noise",
+        action="store_true",
+        help="Add comfort noise to silence regions (prevents dead air)"
+    )
+
     return parser
 
 
@@ -195,6 +219,10 @@ def main():
         isolate_speaker=args.isolate_speaker,
         distance_robust=args.distance_robust,
         speaker_agc=args.speaker_agc,
+        deess=args.deess,
+        remove_hum=args.remove_hum,
+        remove_clicks=args.remove_clicks,
+        comfort_noise=args.comfort_noise,
         verbose=not args.quiet
     )
     
