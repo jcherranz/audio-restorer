@@ -1,0 +1,51 @@
+audio-restorer/
+│
+├── 📄 ENTRY POINTS (Start here!)
+│   ├── run.py              ← Main tool - run this!
+│   └── compare.py          ← Compare original vs enhanced
+│
+├── 📖 DOCUMENTATION
+│   ├── QUICKSTART.md       ← Start here for first use!
+│   ├── PROJECT_SUMMARY.md  ← What we built & roadmap
+│   └── README.md           ← Full documentation
+│
+├── ⚙️ CONFIGURATION
+│   ├── config.py           ← Edit settings here
+│   └── requirements.txt    ← Python packages needed
+│
+├── 🔧 SOURCE CODE (src/)
+│   ├── downloader.py       ← YouTube download & audio extract
+│   ├── audio_enhancer.py   ← Noise reduction & enhancement
+│   ├── video_merger.py     ← Combine audio + video
+│   └── pipeline.py         ← Main orchestration
+│
+├── 📁 OUTPUT FOLDERS
+│   ├── output/             ← Enhanced files appear here ✨
+│   ├── temp/               ← Working files (auto-cleaned)
+│   ├── models/             ← AI models (downloaded as needed)
+│   └── examples/           ← Example usage scripts
+│
+└── 🔨 BINARIES
+    ├── ffmpeg              ← Video/audio processing
+    └── ffprobe             ← Media analysis
+    
+
+YOUR FIRST RESULT:
+==================
+✅ Successfully processed: https://youtu.be/cglDoG0GzyA
+📊 Video duration: 58 minutes
+⏱️  Processing time: 69 seconds
+📁 Output: output/audio_cglDoG0GzyA_enhanced.wav (106 MB)
+
+WHAT WAS DONE:
+1. Downloaded audio from YouTube
+2. Removed background noise (spectral gating)
+3. Normalized audio levels
+4. Saved enhanced version
+
+NEXT STEPS:
+1. Listen to the enhanced audio in output/ folder
+2. Try processing more videos:
+   python run.py "YOUR_YOUTUBE_URL" --audio-only --quick
+3. Read QUICKSTART.md for more commands
+4. Check PROJECT_SUMMARY.md for the full roadmap

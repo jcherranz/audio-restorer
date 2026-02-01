@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(ls:*)",
+      "Bash(wc:*)",
+      "Bash(python:*)",
+      "Bash(source:*)",
+      "Bash(python3:*)",
+      "WebSearch",
+      "WebFetch(domain:nara-wpe.readthedocs.io)",
+      "Bash(pip install:*)",
+      "Bash(ffmpeg:*)",
+      "Bash(apt list:*)",
+      "Bash(/home/jcherranz/audio-restorer/ffmpeg -i output/test_deepfilter_chunked_enhanced.wav -af loudnorm=print_format=summary -f null -)"
+    ]
+  }
+}

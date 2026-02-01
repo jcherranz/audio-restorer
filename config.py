@@ -1,0 +1,102 @@
+"""
+Audio Restoration Configuration
+Edit these settings to customize the restoration process
+"""
+
+import os
+from pathlib import Path
+
+# Base paths
+BASE_DIR = Path(__file__).parent
+TEMP_DIR = BASE_DIR / "temp"
+OUTPUT_DIR = BASE_DIR / "output"
+MODELS_DIR = BASE_DIR / "models"
+
+# FFmpeg path (use local if available, otherwise system)
+FFMPEG_PATH = str(BASE_DIR / "ffmpeg") if (BASE_DIR / "ffmpeg").exists() else "ffmpeg"
+FFPROBE_PATH = str(BASE_DIR / "ffprobe") if (BASE_DIR / "ffprobe").exists() else "ffprobe"
+
+# Ensure directories exist
+TEMP_DIR.mkdir(exist_ok=True)
+OUTPUT_DIR.mkdir(exist_ok=True)
+MODELS_DIR.mkdir(exist_ok=True)
+
+# Audio Settings
+AUDIO_SETTINGS = {
+    "sample_rate": 44100,        # Full bandwidth processing (was 16kHz)
+    "output_sample_rate": 44100,  # CD quality output
+    "format": "wav",             # Intermediate format
+    "output_format": "mp3",      # Final audio format
+    "bitrate": "192k",           # Output bitrate
+}
+
+# Enhancement Settings
+ENHANCEMENT = {
+    # Noise reduction strength (0.0 to 1.0)
+    # Higher = more aggressive noise removal, but might affect speech quality
+    "noise_reduction_strength": 0.8,
+    
+    # Enhancer type to use:
+    # - "simple": ffmpeg-based (fastest, basic quality)
+    # - "torch": PyTorch-based spectral gating (better quality)
+    # - "torch_advanced": PyTorch with VAD (best quality, slower)
+    "enhancer_type": "torch_advanced",
+    
+    # Use GPU acceleration if available (requires CUDA)
+    "use_gpu": False,
+    
+    # Fallback to simple enhancer if ML fails
+    "fallback_to_simple": True,
+    
+    # Normalize audio levels
+    "normalize": True,
+    
+    # Target loudness in LUFS (broadcast standard is -16)
+    "target_loudness": -16,
+    
+    # High-pass filter cutoff (Hz) - removes rumble
+    "highpass_freq": 100,
+    
+    # Low-pass filter cutoff (Hz) - removes hiss
+    # 12kHz preserves consonant clarity (/s/, /f/, /th/ sounds need 8-12kHz)
+    "lowpass_freq": 12000,
+}
+
+# De-reverberation Settings (Iteration 5)
+DEREVERB = {
+    # Enable de-reverberation (removes room echo)
+    # Applied AFTER noise reduction for best results
+    "enabled": False,  # Optional, off by default
+
+    # WPE filter length (prediction filter order)
+    # Higher = more reverb removal but risk of artifacts
+    # Recommended: 5-20 for speech
+    "taps": 10,
+
+    # Prediction delay in frames
+    # Should be at least 1, typically 2-4
+    "delay": 3,
+
+    # Number of refinement iterations
+    # More = better quality but slower
+    # Recommended: 2-5
+    "iterations": 3,
+}
+
+# Video Settings
+VIDEO_SETTINGS = {
+    "video_codec": "copy",      # Copy video stream (no re-encode)
+    "audio_codec": "aac",       # Audio codec for output
+    "audio_bitrate": "192k",
+    "container": "mp4",
+}
+
+# YouTube Download Settings
+YOUTUBE_SETTINGS = {
+    "format": "bestvideo[height<=1080]+bestaudio/best",
+    "merge_output_format": "mp4",
+}
+
+# Logging
+VERBOSE = True
+KEEP_TEMP_FILES = False  # Set to True to keep intermediate files for debugging

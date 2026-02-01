@@ -1,0 +1,37 @@
+# Audio Restoration Project - Dependencies
+# Install with: pip install -r requirements.txt
+
+# YouTube downloading
+yt-dlp>=2023.12.30
+
+# Audio processing
+librosa>=0.10.1
+soundfile>=0.12.1
+pydub>=0.25.1
+noisereduce>=3.0.0
+
+# AI/ML for audio enhancement
+torch>=2.0.0
+torchaudio>=2.0.0
+numpy>=1.24.0
+
+# DeepFilterNet for noise suppression (optional but recommended)
+deepfilternet>=0.5.6
+
+# NARA-WPE for de-reverberation (removes room echo)
+nara-wpe>=0.0.11
+
+# SOTA Quality Metrics (Iteration 6)
+pesq>=0.0.4              # ITU-T P.862 perceptual quality
+pystoi>=0.4.0            # Speech intelligibility
+onnxruntime>=1.16.0      # For DNSMOS neural MOS predictor
+
+# Utilities
+tqdm>=4.66.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# Note: ffmpeg must be installed on your system
+# Ubuntu/Debian: sudo apt install ffmpeg
+# macOS: brew install ffmpeg
+# Windows: https://ffmpeg.org/download.html
