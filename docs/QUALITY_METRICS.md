@@ -365,7 +365,8 @@ done
 
 ---
 
-**Last Updated:** 2026-02-01
+**Last Updated:** 2026-02-05
 **Note:** For quick analysis use `tests/measure_quality.py`. For academic-grade
 metrics (DNSMOS, PESQ, STOI), use `tests/sota_benchmark.py`.
 **Pipeline Sample Rate:** 48kHz (matches DeepFilterNet native rate)
+**Refinement Options:** `--deess`, `--remove-hum`, `--remove-clicks`, `--comfort-noise`

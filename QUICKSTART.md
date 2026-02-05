@@ -59,10 +59,16 @@ python run.py "YOUR_YOUTUBE_URL" --noise-reduction 0.5
 | `--audio-only` | Download & enhance just the audio (faster, smaller files) |
 | `--enhancer deepfilter` | Use best neural enhancer (slower, best quality) |
 | `--enhancer torch_advanced` | Use default ML enhancer (balanced) |
-| `--dereverb` | Remove room echo (CPU-intensive, shorter files) |
 | `--quick` | Use ffmpeg filters only (no ML, faster) |
-| `--comparison` | Create side-by-side before/after video |
 | `--noise-reduction 0.8` | Set noise removal strength (0.0 to 1.0) |
+| `--remove-hum` | Remove power line hum (50/60Hz) |
+| `--remove-clicks` | Remove clicks and pops |
+| `--dereverb` | Remove room echo (CPU-intensive, shorter files) |
+| `--diarize` | Identify different speakers |
+| `--isolate-speaker` | Keep only the main speaker |
+| `--speaker-agc` | Normalize volume per speaker |
+| `--deess` | Reduce harsh /s/ sounds |
+| `--comfort-noise` | Add subtle noise to prevent dead silence |
 | `--keep-temp` | Keep temporary files (for debugging) |
 | `--help` | Show all options |
 
@@ -86,6 +92,10 @@ afplay output/*_enhanced.wav
 
 # 4. Want speaker isolation? Add flags:
 python run.py "https://youtu.be/YOUR_VIDEO" --audio-only --diarize --isolate-speaker
+
+# 5. Full quality pipeline with all refinements:
+python run.py "https://youtu.be/YOUR_VIDEO" --audio-only --enhancer deepfilter \
+    --remove-hum --remove-clicks --deess --comfort-noise
 ```
 
 ---

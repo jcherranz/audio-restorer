@@ -4,6 +4,8 @@
 
 ## 🎯 When to Use GitHub - Decision Guide for AI Agents
 
+For planning, verification, and task management workflow, follow `docs/WORKFLOW_ORCHESTRATION.md`. This document is Git/GitHub focused.
+
 ### Auto-Commit Triggers (Commit & Push When)
 
 | Trigger | Action Required | Example Commit Message |
@@ -395,7 +397,7 @@ git commit -m "fix: Add secret file to .gitignore"
 - These are expected for ffmpeg/ffprobe binaries
 - Warnings are harmless, but consider Git LFS for future large files
 
-## First Push Complete
+## Initial Push
 
 - **Date:** 2026-02-01
 - **Commit:** 68c8aad (Initial commit: Audio restoration tool)
@@ -408,3 +410,5 @@ git commit -m "fix: Add secret file to .gitignore"
 2. Commit changes with descriptive messages
 3. Push to GitHub after significant milestones
 4. Update this document if authentication methods change
+
+**Last Updated:** 2026-02-05

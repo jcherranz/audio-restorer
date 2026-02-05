@@ -15,6 +15,16 @@ Transform poor-quality conference recordings into clear, intelligible audio usin
   - Audio normalization to broadcast standards
 - **Outputs** enhanced WAV or MP3 files
 
+## 🧭 Development Standards
+
+This project uses a layered documentation approach for AI agents:
+
+| Layer | Document | Purpose |
+|-------|----------|---------|
+| Mindset | `docs/SENIOR_ENGINEER_PROMPT.md` | Behavioral principles |
+| Process | `docs/WORKFLOW_ORCHESTRATION.md` | Workflow and task management |
+| Project | `AGENTS.md` | Project-specific instructions |
+
 ## 📋 Requirements
 
 ### System Requirements
@@ -129,12 +139,24 @@ Options:
   -o, --output NAME     Custom output filename
   --audio-only          Process audio only (no video) - RECOMMENDED
   --enhancer TYPE       Choose: simple, torch, torch_advanced, deepfilter
+  --noise-reduction N   Set noise reduction 0.0-1.0
+
+Pre-processing:
+  --remove-hum          Remove power line hum (50/60Hz + harmonics)
+  --remove-clicks       Remove clicks and pops (transient artifacts)
+
+Post-processing:
   --dereverb            Remove room echo (slower, for short files)
   --diarize             Perform speaker diarization (identify speakers)
   --isolate-speaker     Isolate main speaker (removes audience/others)
+  --distance-robust     Adaptive gain/EQ per speaker distance
+  --speaker-agc         Per-speaker automatic gain control
+  --deess               Reduce harsh sibilant sounds (/s/, /sh/)
+  --comfort-noise       Add comfort noise to silence (prevents dead air)
+
+Other:
   --comparison          Create side-by-side comparison (deprecated)
   --quick               Use only ffmpeg (faster, no ML)
-  --noise-reduction N   Set noise reduction 0.0-1.0
   --output-dir PATH     Custom output directory
   --keep-temp           Keep temporary files
   --quiet               Reduce output verbosity
@@ -253,7 +275,12 @@ Output Enhanced Video
 - [x] Speaker diarization (Phase 3)
 - [x] Speaker isolation (Phase 3)
 - [x] Distance-robust enhancement (Phase 3)
-- [ ] Advanced room correction (Phase 4)
+- [x] Per-speaker AGC (Phase 3)
+- [x] De-essing / sibilance control (Phase 4)
+- [x] Hum removal (Phase 4)
+- [x] Click/pop removal (Phase 4)
+- [x] Comfort noise (Phase 4)
+- [ ] Advanced room correction (Phase 5)
 - [ ] GUI interface (future)
 - [ ] Real-time preview (future)
 
@@ -262,11 +289,21 @@ Output Enhanced Video
 | Document | Purpose |
 |----------|---------|
 | **QUICKSTART.md** | Get started in 30 seconds |
-| **AGENTS.md** | Guidelines for LLM agents working on this project |
 | **ROADMAP.md** | Current phase and future plans |
 | **ITERATION_LOG.md** | Complete history of all changes |
 | **docs/QUALITY_METRICS.md** | How we measure audio quality |
 | **docs/GITHUB_SETUP.md** | GitHub integration guide |
+| **docs/primer.md** | Audio restoration fundamentals |
+
+**For AI Agents:**
+
+| Document | Purpose |
+|----------|---------|
+| **AGENTS.md** | Project-specific instructions (start here) |
+| **docs/SENIOR_ENGINEER_PROMPT.md** | Mindset and behavioral principles |
+| **docs/WORKFLOW_ORCHESTRATION.md** | Process, planning, and task management |
+| **tasks/todo.md** | Current task tracking |
+| **tasks/lessons.md** | Lessons learned from corrections |
 
 ## 📄 License
 

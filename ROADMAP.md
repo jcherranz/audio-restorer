@@ -85,7 +85,7 @@ Audio is successful when:
 ## Phase 3: Speech Enhancement & Isolation ✅ COMPLETE
 
 **Status:** COMPLETE
-**Duration:** 2026-02-01 (Iterations 9-11)
+**Duration:** 2026-02-01 (Iterations 9-12)
 **Goal:** Isolate main speaker, reduce crowd noise, handle multiple speakers
 
 ### Why This Phase?
@@ -99,7 +99,7 @@ Conference recordings often have:
 - [x] Speaker diarization (who is speaking when) ✅ Iteration 9
 - [x] Speaker isolation/separation ✅ Iteration 10
 - [x] Distance-robust speech enhancement ✅ Iteration 11
-- [ ] Automatic gain control per speaker (Future/Optional)
+- [x] Automatic gain control per speaker ✅ Iteration 12
 
 ### Technical Tasks
 
@@ -129,42 +129,65 @@ Conference recordings often have:
 
 ---
 
-## Phase 4: Echo & Reverb Removal 📋 PLANNED
+## Phase 4: Audio Quality Refinement ✅ COMPLETE
 
-**Status:** PLANNED  
-**Duration:** After Phase 3 complete  
-**Goal:** Remove room acoustics, make sound dry and clear
+**Status:** COMPLETE
+**Duration:** 2026-02-01 (Iterations 13-18)
+**Goal:** Polish audio quality with refinement tools
+
+### Why This Phase?
+After noise reduction, additional refinements improve perceived quality:
+- Sibilance control (harsh /s/ sounds)
+- Electrical hum from power lines
+- Clicks and pops from digital artifacts
+- Unnatural silence after aggressive denoising
+
+### Deliverables
+- [x] DeepFilterNet strength parameter ✅ Iteration 13
+- [x] Multi-video test suite ✅ Iteration 14
+- [x] De-essing (sibilance control) ✅ Iteration 15
+- [x] Hum removal (50/60Hz) ✅ Iteration 16
+- [x] Click/pop removal ✅ Iteration 17
+- [x] Comfort noise ✅ Iteration 18
+
+### Success Criteria
+- [x] Configurable enhancement strength
+- [x] Multiple audio refinement tools
+- [x] Testing across diverse recordings
+- [x] Quality score maintained above 75
+
+### Quality Level Target
+**Professional** - Studio-quality conference audio.
+
+---
+
+## Phase 5: Echo & Reverb Removal 📋 PLANNED
+
+**Status:** PLANNED
+**Duration:** After Phase 4 complete
+**Goal:** Advanced room acoustics removal
 
 ### Why This Phase?
 Conference rooms often have:
-- Echo/reverberation
+- Echo/reverberation beyond basic de-reverb
 - Room modes (boomy sound)
-- Reflections from walls
+- Late reflections from walls
 
 ### Deliverables
-- [ ] Dereverberation
+- [ ] Advanced dereverberation
 - [ ] Room mode correction
-- [ ] Early reflection removal
-
-### Technical Tasks
-- Implement dereverberation algorithms
-- Room impulse response estimation
-- Adaptive filtering
-
-### Success Criteria
-- [ ] Reverb time reduced by >50%
-- [ ] No "boomy" or "hollow" sound
-- [ ] Clear, dry speech quality
+- [ ] Processing chain optimization (Iteration 19)
+- [ ] Quality tracking/DNSMOS target (Iteration 20)
 
 ### Quality Level Target
 **Professional** - Sounds like close-mic studio recording.
 
 ---
 
-## Phase 5: Polish & Optimization 📋 PLANNED
+## Phase 6: Polish & Optimization 📋 PLANNED
 
-**Status:** PLANNED  
-**Duration:** After Phase 4 complete  
+**Status:** PLANNED
+**Duration:** After Phase 5 complete
 **Goal:** Fast processing, easy use, reliable results
 
 ### Deliverables
@@ -179,12 +202,12 @@ Conference rooms often have:
 
 ---
 
-## Phase 6: Advanced Features (Future) 📋 PLANNED
+## Phase 7: Advanced Features (Future) 📋 PLANNED
 
-**Status:** FUTURE - Not until audio is perfect  
+**Status:** FUTURE - Not until audio is perfect
 **Goal:** Additional convenience features
 
-### Deliverables (only after Phase 5)
+### Deliverables (only after Phase 6)
 - [ ] GUI interface (optional, CLI works well)
 - [ ] Real-time preview
 - [ ] Automatic transcription integration
@@ -207,16 +230,21 @@ Conference rooms often have:
 1. ✅ Speaker diarization (who is speaking when) - Iteration 9
 2. ✅ Speaker isolation (separate from crowd) - Iteration 10
 3. ✅ Distance-robust enhancement (consistent volume) - Iteration 11
-4. ✅ All success criteria met
+4. ✅ Per-speaker AGC - Iteration 12
+5. ✅ All success criteria met
 
-### Completed This Month
-1. ✅ Complete Phase 2 (ML enhancement) - DONE
-2. ✅ Comprehensive testing - DONE
-3. ✅ Quality benchmarks established - DONE
-4. ✅ Codebase cleanup - DONE
+### ✅ Phase 4 COMPLETE (Audio Quality Refinement)
+1. ✅ scipy dependency + DeepFilterNet strength - Iteration 13
+2. ✅ Multi-video test suite - Iteration 14
+3. ✅ De-essing (sibilance control) - Iteration 15
+4. ✅ Hum removal (50/60Hz) - Iteration 16
+5. ✅ Click/pop removal - Iteration 17
+6. ✅ Comfort noise - Iteration 18
 
-### Next: Phase 4 (Echo & Reverb Removal)
-Note: Basic de-reverberation already available via `--dereverb` flag.
+### Next: Phase 5 (Echo & Reverb Removal)
+- Iteration 19: Processing chain optimization
+- Iteration 20: Quality tracking/DNSMOS target
+- Note: Basic de-reverberation already available via `--dereverb` flag.
 
 ### Success Metrics by Phase
 
@@ -249,6 +277,6 @@ Note: Basic de-reverberation already available via `--dereverb` flag.
 
 ---
 
-**Last Updated:** 2026-02-01
-**Current Phase:** Phase 3 COMPLETE - Ready for Phase 4
-**Next Milestone:** Advanced de-reverberation and room correction
+**Last Updated:** 2026-02-05
+**Current Phase:** Phase 4 COMPLETE - Ready for Phase 5
+**Next Milestone:** Processing chain optimization (Iteration 19)

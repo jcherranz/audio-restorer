@@ -3,6 +3,23 @@
 > **This file is for AI agents/LLMs working on this project.**
 > It contains the context, rules, and procedures for autonomous development.
 
+## Document Hierarchy
+
+This project uses three complementary documents:
+
+| Document | Purpose | Changes |
+|----------|---------|---------|
+| `docs/SENIOR_ENGINEER_PROMPT.md` | **Mindset** - How to think (principles, behaviors) | Rarely |
+| `docs/WORKFLOW_ORCHESTRATION.md` | **Process** - How to work (planning, verification, tasks) | Rarely |
+| `AGENTS.md` (this file) | **Project** - What to do on THIS project | Often |
+
+**Read order:** SENIOR_ENGINEER → WORKFLOW_ORCHESTRATION → AGENTS.md
+
+When in doubt:
+- Behavioral questions → SENIOR_ENGINEER_PROMPT.md
+- Process questions → WORKFLOW_ORCHESTRATION.md
+- Project-specific questions → This file
+
 ## Project Goal
 
 Create the best possible audio restoration tool for conference recordings.
@@ -17,7 +34,7 @@ This project follows **Kaizen** (continuous improvement) principles:
 - **No regressions** - Quality score must stay >= 75, SNR >= 25dB
 - **Document everything** - Future agents need full context
 
-## Current Status (Last Updated: 2026-01-31)
+## Current Status (Last Updated: 2026-02-05)
 
 ### What Works Now
 - ✅ YouTube audio downloading
@@ -72,7 +89,7 @@ audio-restorer/
 ├── ITERATION_LOG.md    ← Log of all changes made
 ├── ROADMAP.md          ← Current roadmap and plans
 ├── docs/QUALITY_METRICS.md  ← How we measure audio quality
-├── TESTS/              ← All test files
+├── tests/              ← All test files
 │   ├── test_pipeline.py
 │   ├── test_quality.py
 │   └── test_benchmarks.py
@@ -87,32 +104,25 @@ audio-restorer/
 └── benchmarks/         ← Quality benchmarks and samples
 ```
 
-## 📝 Agent Rules
+## 📝 Project-Specific Rules
 
-### 1. ALWAYS Update Documentation
-- Update `ITERATION_LOG.md` with every change
+> For general principles (simplicity, assumptions, scope), see `docs/SENIOR_ENGINEER_PROMPT.md`.
+> For workflow (planning, verification, tasks), see `docs/WORKFLOW_ORCHESTRATION.md`.
+
+### 1. Documentation Updates
+- Update `ITERATION_LOG.md` with every change (what, why, metrics)
 - Update `ROADMAP.md` when completing milestones
-- Never leave code undocumented
+- Track work in `tasks/todo.md`
 
-### 2. ALWAYS Test with Reference Video
+### 2. Testing with Reference Video
 - Use `https://youtu.be/cglDoG0GzyA` for all quality tests
-- Keep test outputs in `benchmarks/` with timestamps
+- Run quality gate before committing: `python tests/quality_gate.py`
 - Compare before/after with metrics
 
-### 3. NEVER Break Existing Functionality
-- Run tests before committing changes
-- Maintain backward compatibility
-- If adding features, make them optional/configurable
-
-### 4. ALWAYS Focus on Audio Quality
+### 3. Audio Quality Focus
 - Video features are secondary
 - Every iteration should improve audio OR add audio testing
-- Document audio quality improvements with metrics
-
-### 5. ALWAYS Be Explicit
-- No hidden assumptions
-- Document WHY changes were made
-- Include examples in docstrings
+- New features must be optional (CLI flags)
 
 ## 🔄 Iteration Workflow
 
@@ -126,7 +136,7 @@ When working on this project:
 
 ### Step 2: Plan Your Work
 1. Check `ROADMAP.md` for current phase
-2. Create a plan for what you'll implement
+2. Create a plan for what you'll implement (track in `tasks/todo.md` per `docs/WORKFLOW_ORCHESTRATION.md`)
 3. Document expected outcomes
 
 ### Step 3: Implement
@@ -306,9 +316,10 @@ cat ROADMAP.md
 ## 🌐 GitHub Integration
 
 **Repository:** https://github.com/jcherranz/audio-restorer
-**Documentation:** `docs/GITHUB_SETUP.md`
 
-### When to Commit & Push
+For complete Git workflow, authentication, and commit guidelines, see: `docs/GITHUB_SETUP.md`
+
+### Quick Reference
 
 **ALWAYS commit when:**
 - ✅ Completing a feature or iteration
@@ -321,58 +332,10 @@ cat ROADMAP.md
 - ❌ Broken or incomplete code
 - ❌ Files with failing tests
 - ❌ Secrets or temporary files
-- ❌ Binary outputs (already in .gitignore)
 
-### Quick Workflow
-
-```bash
-# 1. Setup (do this first in every session)
-source ~/.config/github/audio-restorer.env
-git remote set-url origin https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/${GITHUB_USERNAME}/${GITHUB_REPO}.git
-
-# 2. Check current status
-git status
-
-# 3. Pull latest changes (always pull before starting)
-git pull origin main
-
-# 4. Do your work...
-
-# 5. Before committing - verify tests pass
-python -m pytest tests/ -v --tb=short
-
-# 6. Stage, commit, push
-git add .
-git commit -m "type: Description of changes"
-git push origin main
-
-# 7. Cleanup (remove token from URL)
-git remote set-url origin https://github.com/${GITHUB_USERNAME}/${GITHUB_REPO}.git
-```
-
-### Commit Message Format
-
-```
-type: Brief description (50 chars)
-
-- feat: New feature
-- fix: Bug fix  
-- docs: Documentation
-- test: Tests
-- refactor: Code restructuring
-- perf: Performance
-- chore: Maintenance
-```
-
-### Pre-Commit Checklist
-
-Before every commit:
-1. ✅ `git status` - Know what changed
-2. ✅ Tests pass: `python -m pytest tests/ -v`
-3. ✅ Quality gate: `python tests/quality_gate.py output/test.wav`
-4. ✅ Meaningful commit message
-5. ✅ No secrets in staged files
-```
+**Commit message format:** `type: Brief description`
+- `feat:` New feature | `fix:` Bug fix | `docs:` Documentation
+- `test:` Tests | `refactor:` Code restructuring | `chore:` Maintenance
 
 ## Enhancer Interface Contract
 
@@ -470,7 +433,7 @@ class MyEnhancer(BaseEnhancer):
 | 4 | Silero VAD neural speech detection | Complete |
 | 5 | NARA-WPE de-reverberation | Complete |
 
-### Phase 2: SOTA Upgrades (In Progress)
+### Phase 2: SOTA Upgrades (Complete)
 | # | Iteration | Status |
 |---|-----------|--------|
 | 6 | SOTA metrics (DNSMOS, PESQ, STOI) | **Complete** |
@@ -515,7 +478,7 @@ class MyEnhancer(BaseEnhancer):
 **Remember:** This is an AUDIO QUALITY project. Video is secondary.
 Every iteration should make conference audio clearer and more intelligible.
 
-**Last updated by:** Iteration 18 (Comfort Noise)
-**Current Phase:** Phase 4 - Audio Quality Refinement (Iterations 13-18 Complete)
-**Final Quality Score:** 115.9/100 (DeepFilterNet - exceeded all targets)
-**New Features:** De-essing, hum removal, click removal, comfort noise
+**Last updated:** 2026-02-05 (Documentation review)
+**Current Phase:** Phase 4 Complete - Ready for Phase 5 (Iterations 19-20)
+**Best Quality Score:** 115.9/100 (DeepFilterNet - exceeded all targets)
+**Available Refinements:** De-essing, hum removal, click removal, comfort noise
