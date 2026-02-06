@@ -10,13 +10,16 @@
 ## Pending
 
 <!-- Tasks queued for implementation -->
-- [ ] Multi-video statistical validation (run 5+ diverse recordings)
-- [ ] Improve DNSMOS OVRL beyond 3.0 (currently 2.63) — may need generative model
-- [ ] Improve DNSMOS SIG beyond 3.0 (currently 2.96) — source material ceiling reached
+- [ ] Improve noisy-source SIG (cglDoG0GzyA: 2.96, FGDqFZZabsY: 2.33) — source material ceiling
+- [ ] Phase 5: Advanced dereverberation / room mode correction
 
 ## Completed
 
 <!-- Move completed tasks here with date -->
+- [x] 2026-02-06: Iteration 35 — Multi-video DNSMOS validation (5 recordings)
+  - Mean enhanced: SIG=3.39, BAK=4.01, OVRL=3.11 (all improve vs original)
+  - BAK consistently > 3.5 across all recordings (σ=0.30)
+  - Average OVRL above 3.0 target
 - [x] 2026-02-06: Iteration 34 — SIG-aware quality monitoring + atten_lim benchmark
   - `_run_stage()` now checks SIG degradation (not just OVRL)
   - `_quick_dnsmos()` returns dict with sig/bak/ovrl

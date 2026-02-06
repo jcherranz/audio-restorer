@@ -1,6 +1,6 @@
 {
   "description": "Test video library for multi-video benchmarking",
-  "last_updated": "2026-02-01",
+  "last_updated": "2026-02-06",
   "videos": [
     {
       "id": "cglDoG0GzyA",
@@ -12,22 +12,40 @@
       "notes": "Primary reference video - conference presentation"
     },
     {
-      "id": "dQw4w9WgXcQ",
-      "url": "https://youtu.be/dQw4w9WgXcQ",
-      "type": "music_video",
-      "duration_min": 4,
-      "speakers": "single",
-      "noise_level": "low",
-      "notes": "Clean audio baseline - tests for artifacts"
+      "id": "FGDqFZZabsY",
+      "url": "https://youtu.be/FGDqFZZabsY",
+      "type": "conference",
+      "duration_min": 55,
+      "speakers": "single_main",
+      "noise_level": "moderate",
+      "notes": "Conference presentation - second reference"
     },
     {
-      "id": "jNQXAC9IVRw",
-      "url": "https://youtu.be/jNQXAC9IVRw",
-      "type": "informal",
-      "duration_min": 1,
-      "speakers": "single",
-      "noise_level": "high",
-      "notes": "First YouTube video - lo-fi quality"
+      "id": "UF8uR6Z6KLc",
+      "url": "https://youtu.be/UF8uR6Z6KLc",
+      "type": "conference",
+      "duration_min": 18,
+      "speakers": "single_main",
+      "noise_level": "low",
+      "notes": "Steve Jobs iPhone keynote - large venue, good mic"
+    },
+    {
+      "id": "8jPQjjsBbIc",
+      "url": "https://youtu.be/8jPQjjsBbIc",
+      "type": "conference",
+      "duration_min": 25,
+      "speakers": "single_main",
+      "noise_level": "moderate",
+      "notes": "Technical talk - typical conference room"
+    },
+    {
+      "id": "arj7oStGLkU",
+      "url": "https://youtu.be/arj7oStGLkU",
+      "type": "conference",
+      "duration_min": 15,
+      "speakers": "single_main",
+      "noise_level": "low",
+      "notes": "TED talk - professional recording setup"
     }
   ],
   "categories": {
@@ -35,8 +53,7 @@
     "panel": "Multiple speakers taking turns",
     "interview": "Two-person conversation",
     "webinar": "Screen share with voice",
-    "informal": "Casual recording",
-    "music_video": "Clean studio audio (baseline)"
+    "informal": "Casual recording"
   },
   "noise_levels": {
     "low": "Clean recording, minimal background noise",

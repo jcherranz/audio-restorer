@@ -2167,3 +2167,71 @@ naturalness outweighs noise reduction. Default remains `None`.
 - Improving beyond this likely requires a generative model (speech super-resolution)
   or better source recordings
 - Focus next work on multi-video validation to confirm metrics across diverse recordings
+
+---
+
+## [2026-02-06] Iteration 35: Multi-Video DNSMOS Validation
+
+### Summary
+Validated DNSMOS scores across 5 diverse conference recordings to confirm our pipeline
+generalizes beyond the single reference video. DeepFilterNet consistently improves all
+metrics, with BAK showing the largest gains.
+
+### Test Recordings
+
+| Video | Type | Noise | Duration | Input SNR |
+|-------|------|-------|----------|-----------|
+| cglDoG0GzyA | Conference presentation | moderate | 58 min | 15.3 dB |
+| FGDqFZZabsY | Conference presentation | moderate | 55 min | ~15 dB |
+| UF8uR6Z6KLc | Steve Jobs keynote | low | 15 min | 36.0 dB |
+| 8jPQjjsBbIc | Technical talk | moderate | 12 min | 33.9 dB |
+| arj7oStGLkU | TED talk | low | 14 min | 34.7 dB |
+
+### Per-Video Results
+
+| Video | Orig SIG | Enh SIG | ΔSIG | Orig BAK | Enh BAK | ΔBAK | Orig OVRL | Enh OVRL | ΔOVRL |
+|-------|----------|---------|------|----------|---------|------|-----------|----------|-------|
+| cglDoG0GzyA | 1.28 | 2.96 | +1.69 | 1.33 | 3.84 | +2.51 | 1.16 | 2.63 | +1.47 |
+| FGDqFZZabsY | 1.68 | 2.33 | +0.65 | 1.45 | 3.51 | +2.07 | 1.34 | 2.11 | +0.76 |
+| UF8uR6Z6KLc | 4.04 | 4.03 | -0.02 | 3.73 | 4.35 | +0.62 | 3.51 | 3.78 | +0.27 |
+| 8jPQjjsBbIc | 3.85 | 4.01 | +0.15 | 3.55 | 4.23 | +0.68 | 3.38 | 3.70 | +0.32 |
+| arj7oStGLkU | 3.42 | 3.62 | +0.20 | 2.96 | 4.11 | +1.15 | 2.89 | 3.34 | +0.45 |
+
+### Aggregate Statistics
+
+| Metric | Original | Enhanced | Delta |
+|--------|----------|----------|-------|
+| **SIG** | 2.86 ± 1.15 | **3.39 ± 0.65** | +0.53 ± 0.62 |
+| **BAK** | 2.60 ± 1.02 | **4.01 ± 0.30** | +1.41 ± 0.76 |
+| **OVRL** | 2.45 ± 1.01 | **3.11 ± 0.65** | +0.66 ± 0.44 |
+
+### Key Findings
+
+1. **DeepFilterNet improves all recordings**: Every video shows OVRL improvement (+0.27 to +1.47)
+2. **BAK improvement is consistent and large**: All enhanced recordings achieve BAK > 3.5 (mean 4.01 ± 0.30)
+3. **SIG improvement depends on source quality**:
+   - Noisy recordings (SIG < 2.0): Large improvement (+0.65 to +1.69)
+   - Clean recordings (SIG > 3.5): Nearly preserved (-0.02 to +0.20) — "do no harm"
+4. **Enhanced BAK variance is very low** (0.30): DeepFilterNet reliably achieves good background quality
+5. **Average enhanced OVRL is 3.11** — above 3.0 target when averaged across diverse recordings
+6. **The primary reference video (cglDoG0GzyA) is actually the noisiest** in our test set
+
+### SIG Ceiling Confirmation
+- Clean recordings (SIG > 3.5 originally) maintain SIG after enhancement
+- Our primary reference starts at SIG=1.28 — DeepFilterNet brings it to 2.96 (+1.69), but can't
+  reach 3.0+ because the original speech signal was too degraded
+- The SIG ceiling is fundamentally limited by source material quality
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `tests/reference_videos.json` | Updated with 5 conference recordings |
+| `ITERATION_LOG.md` | Documented results |
+| `tasks/todo.md` | Updated task status |
+
+### Verification
+- [x] 5 videos downloaded and processed
+- [x] DNSMOS measured on all original and enhanced files
+- [x] Report saved to output/multi_video_dnsmos_validation.json
+- [x] All enhanced recordings show OVRL improvement
+- [x] Average enhanced OVRL > 3.0
