@@ -53,6 +53,11 @@ ENHANCEMENT = {
     # Use GPU acceleration if available (auto-detected)
     "use_gpu": _GPU_AVAILABLE,
 
+    # DeepFilterNet attenuation limit in dB (None = unlimited suppression)
+    # Lower values (e.g. 12-20) preserve more speech quality at cost of
+    # less noise suppression. None = maximum denoising (best BAK, may hurt SIG).
+    "atten_lim_db": None,
+
     # Fallback to simple enhancer if ML fails
     "fallback_to_simple": True,
     

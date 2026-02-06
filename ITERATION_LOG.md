@@ -2089,3 +2089,62 @@ Implemented 10 iterations in a single session to optimize audio quality, fix lou
 - [x] DNSMOS preserved through processing chain
 - [x] All source files compile clean
 - [x] CLI `--preset` and `--help` work correctly
+
+---
+
+## [2026-02-06] Iteration 34: SIG-Aware Quality Monitoring + DeepFilterNet Attenuation Limit
+
+### Summary
+Investigated why DNSMOS OVRL (2.63) and SIG (2.96) are below 3.0 despite excellent BAK (3.84).
+Root cause: SIG (speech signal quality) is the bottleneck for OVRL. The per-stage quality monitoring
+only checked OVRL, so stages that degraded speech quality (SIG) while improving background (BAK)
+could pass undetected. Additionally, DeepFilterNet had no attenuation limit, meaning it could
+over-suppress noise at the expense of speech naturalness.
+
+### Research Findings
+1. **DNSMOS OVRL is heavily influenced by SIG** — listeners weight speech distortion more than noise
+2. **Over-suppression is the #1 cause of low SIG** — too-aggressive denoising damages speech harmonics
+3. **Realistic ceiling for YouTube conference audio**: SIG 2.8-3.5 (source material is the main limiter)
+4. **DeepFilterNet `atten_lim_db` parameter** limits max noise suppression to preserve speech quality
+5. **Per-stage monitoring was blind to SIG degradation** — only OVRL was checked
+
+### Changes Made
+
+**1. SIG-aware per-stage quality monitoring (`_run_stage`)**
+- Now measures both SIG and OVRL before/after each optional stage
+- Skips stages that degrade SIG by > 0.05 (previously only checked OVRL)
+- Logs both metrics: `Quality: OVRL 2.63→2.65, SIG 2.96→2.98 ✓`
+
+**2. Upgraded `_quick_dnsmos()` return type**
+- Changed from `float` (OVRL only) to `dict` with `sig`, `bak`, `ovrl`
+- Enables SIG tracking throughout the pipeline
+
+**3. DeepFilterNet `atten_lim_db` parameter**
+- Added `atten_lim_db` to `DeepFilterNetEnhancer.__init__()` and `enhance()` call
+- Passes through to DeepFilterNet's native `atten_lim_db` parameter
+- Default: `None` (unlimited, preserves current behavior)
+- Lower values (e.g. 12-20 dB) limit max suppression, preserving more speech
+
+**4. Config + CLI support**
+- Added `atten_lim_db` to `ENHANCEMENT` config dict
+- Added `--atten-lim` CLI flag to `run.py`
+- CLI value overrides config
+
+### Files Modified
+| File | Changes |
+|------|---------|
+| `src/pipeline.py` | `_quick_dnsmos()` returns dict; `_run_stage()` checks SIG; wires `atten_lim_db` to DeepFilterNet |
+| `src/deepfilter_enhancer.py` | Added `atten_lim_db` param, passed to `df_enhance()`, logged in output |
+| `config.py` | Added `atten_lim_db: None` to ENHANCEMENT dict |
+| `run.py` | Added `--atten-lim` CLI flag, wired to config |
+
+### Test Results
+- 34 unit tests pass (~52s)
+- All modified files compile clean
+- CLI `--help` shows `--atten-lim` flag
+- DNSMOS dict return verified (sig, bak, ovrl keys)
+
+### Recommended Next Steps
+- Run full pipeline on reference video with `--atten-lim 15` and measure DNSMOS to find optimal value
+- Compare SIG scores with different attenuation limits (None, 12, 15, 20)
+- Run multi-video benchmark to validate SIG monitoring catches degrading stages

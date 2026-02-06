@@ -23,7 +23,9 @@
       "Bash(find:*)",
       "Bash(git -C /home/jcherranz/audio-restorer log --oneline -20)",
       "Bash(pkill:*)",
-      "Bash(gh auth:*)"
+      "Bash(gh auth:*)",
+      "WebFetch(domain:arxiv.org)",
+      "WebFetch(domain:ar5iv.labs.arxiv.org)"
     ]
   }
 }

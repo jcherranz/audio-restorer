@@ -57,7 +57,8 @@ class DeepFilterNetEnhancer:
                  noise_reduction_strength: float = 0.8,
                  use_gpu: bool = True,
                  verbose: bool = True,
-                 post_filter: bool = False):
+                 post_filter: bool = False,
+                 atten_lim_db: Optional[float] = None):
         """
         Initialize DeepFilterNet enhancer.
 
@@ -69,11 +70,15 @@ class DeepFilterNetEnhancer:
             verbose: Print progress messages
             post_filter: Apply additional post-filtering (can help with
                 residual noise but may affect speech quality)
+            atten_lim_db: Maximum noise attenuation in dB, or None for
+                unlimited. Lower values (e.g. 12-20) preserve more speech
+                at cost of less noise suppression. None = full suppression.
         """
         self.noise_reduction_strength = noise_reduction_strength
         self.use_gpu = use_gpu
         self.verbose = verbose
         self.post_filter = post_filter
+        self.atten_lim_db = atten_lim_db
 
         self.model = None
         self.df_state = None
@@ -187,6 +192,8 @@ class DeepFilterNetEnhancer:
 
         if self.verbose:
             print(f"\n🧠 DeepFilterNet Enhancement: {input_path.name}")
+            if self.atten_lim_db is not None:
+                print(f"  Attenuation limit: {self.atten_lim_db} dB")
 
         # Load audio
         audio, orig_sr = load_mono_audio(input_path, verbose=self.verbose)
@@ -242,7 +249,8 @@ class DeepFilterNetEnhancer:
                 enhanced_chunk = self._df_enhance(
                     self.model,
                     self.df_state,
-                    chunk_tensor
+                    chunk_tensor,
+                    atten_lim_db=self.atten_lim_db,
                 )
 
             # Convert to numpy

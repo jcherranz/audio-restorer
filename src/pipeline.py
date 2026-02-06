@@ -176,12 +176,14 @@ class AudioRestorationPipeline:
         if enhancer_type == "deepfilter":
             try:
                 from .deepfilter_enhancer import DeepFilterNetEnhancer
+                atten_lim = self._enhancement_config.get("atten_lim_db")
                 if verbose:
                     print("Using DeepFilterNet (neural denoising)")
                 return DeepFilterNetEnhancer(
                     noise_reduction_strength=noise_reduction_strength,
                     use_gpu=use_gpu,
-                    verbose=verbose
+                    verbose=verbose,
+                    atten_lim_db=atten_lim,
                 )
             except ImportError as e:
                 if verbose:
@@ -241,17 +243,17 @@ class AudioRestorationPipeline:
                 print(f"⚠ Could not load {label}: {e}")
             return False, None
 
-    def _quick_dnsmos(self, audio_path: Path) -> float:
-        """Fast DNSMOS OVRL score using a single chunk.
+    def _quick_dnsmos(self, audio_path: Path) -> dict:
+        """Fast DNSMOS scores using a single chunk.
 
-        Returns OVRL score (1-5), or 0.0 on failure.
+        Returns dict with 'ovrl', 'sig', 'bak' (1-5 each), or empty dict on failure.
         """
         try:
             from .audio_utils import load_mono_audio
             from .sota_metrics import SOTAMetricsCalculator
 
             if not hasattr(self, '_metrics_calc'):
-                self._metrics_calc = SOTAMetricsCalculator()
+                self._metrics_calc = SOTAMetricsCalculator(verbose=False)
 
             audio, sr = load_mono_audio(audio_path, verbose=False)
 
@@ -266,10 +268,9 @@ class AudioRestorationPipeline:
                 mid = len(audio) // 2 - chunk_size // 2
                 audio = audio[mid:mid + chunk_size]
 
-            result = self._metrics_calc.calculate_dnsmos(audio, sr)
-            return result.get('ovrl', 0.0)
+            return self._metrics_calc.calculate_dnsmos(audio, sr)
         except Exception:
-            return 0.0
+            return {}
 
     def _run_stage(self, name, processor, audio_path, suffix, method="process",
                    quality_check=True, **kwargs):
@@ -277,7 +278,7 @@ class AudioRestorationPipeline:
 
         Writes to a temp file, then replaces the input on success.
         If quality_check is True, measures DNSMOS before/after and skips
-        the stage if OVRL decreases.
+        the stage if OVRL or SIG decreases by more than 0.05.
 
         Returns True if the stage succeeded, False otherwise.
         """
@@ -285,24 +286,38 @@ class AudioRestorationPipeline:
             print("\n" + "=" * 60)
             stage_output = self.output_dir / f"{audio_path.stem}{suffix}.wav"
 
-            # Measure quality before
-            ovrl_before = 0.0
+            # Measure quality before (OVRL + SIG)
+            scores_before = {}
             if quality_check:
-                ovrl_before = self._quick_dnsmos(audio_path)
+                scores_before = self._quick_dnsmos(audio_path)
 
             getattr(processor, method)(audio_path, stage_output, **kwargs)
 
-            # Measure quality after and compare
-            if quality_check and ovrl_before > 0:
-                ovrl_after = self._quick_dnsmos(stage_output)
+            # Measure quality after and compare both OVRL and SIG
+            if quality_check and scores_before:
+                scores_after = self._quick_dnsmos(stage_output)
+                ovrl_before = scores_before.get('ovrl', 0)
+                sig_before = scores_before.get('sig', 0)
+                ovrl_after = scores_after.get('ovrl', 0)
+                sig_after = scores_after.get('sig', 0)
+
                 if ovrl_after > 0 and ovrl_after < ovrl_before - 0.05:
                     if self.verbose:
-                        print(f"  ⚠ {name} degraded quality "
-                              f"(OVRL {ovrl_before:.2f} → {ovrl_after:.2f}), skipping")
+                        print(f"  ⚠ {name} degraded OVRL "
+                              f"({ovrl_before:.2f} → {ovrl_after:.2f}), skipping")
                     stage_output.unlink(missing_ok=True)
                     return False
-                elif self.verbose and ovrl_after > 0:
-                    print(f"  Quality check: OVRL {ovrl_before:.2f} → {ovrl_after:.2f} ✓")
+
+                if sig_after > 0 and sig_after < sig_before - 0.05:
+                    if self.verbose:
+                        print(f"  ⚠ {name} degraded SIG "
+                              f"({sig_before:.2f} → {sig_after:.2f}), skipping")
+                    stage_output.unlink(missing_ok=True)
+                    return False
+
+                if self.verbose and ovrl_after > 0:
+                    print(f"  Quality: OVRL {ovrl_before:.2f}→{ovrl_after:.2f}, "
+                          f"SIG {sig_before:.2f}→{sig_after:.2f} ✓")
 
             shutil.move(str(stage_output), str(audio_path))
             return True

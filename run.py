@@ -173,6 +173,14 @@ Examples:
         help="Add comfort noise to silence regions (prevents dead air)"
     )
 
+    parser.add_argument(
+        "--atten-lim",
+        type=float,
+        default=None,
+        help="DeepFilterNet attenuation limit in dB (e.g. 15). Limits max noise "
+             "suppression to preserve speech quality. None = unlimited (default)"
+    )
+
     preset_names = list(PRESETS.keys())
     preset_help = "Use a curated preset: " + ", ".join(
         f"{k} ({v['description']})" for k, v in PRESETS.items()
@@ -232,6 +240,10 @@ def main():
     def flag_or_preset(flag_name):
         cli_val = getattr(args, flag_name, False)
         return cli_val or preset_flags.get(flag_name, False)
+
+    # Apply CLI overrides to enhancement config
+    if args.atten_lim is not None:
+        ENHANCEMENT["atten_lim_db"] = args.atten_lim
 
     # Initialize pipeline
     pipeline = AudioRestorationPipeline(
