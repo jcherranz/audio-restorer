@@ -545,30 +545,16 @@ class AudioRestorationPipeline:
             result.original_video = video_path or audio_path
 
             # Pre-processing: Hum removal (if enabled, before main enhancement)
+            # Quality-checked: auto-skips if DNSMOS degrades (Iteration 38)
             if self.remove_hum_enabled and self.hum_remover:
-                try:
-                    print("\n" + "=" * 60)
-                    hum_free_path = self.output_dir / f"{audio_path.stem}_nohum.wav"
-                    self.hum_remover.process(audio_path, hum_free_path)
-                    # Use hum-free audio for subsequent processing
-                    audio_path = hum_free_path
-                except Exception as e:
-                    if self.verbose:
-                        print(f"\n⚠ Hum removal failed: {e}")
-                        print("  Continuing with original audio")
+                self._run_stage("Hum removal", self.hum_remover,
+                                audio_path, "_nohum")
 
             # Pre-processing: Click removal (if enabled, before main enhancement)
+            # Quality-checked: auto-skips if DNSMOS degrades (Iteration 38)
             if self.remove_clicks_enabled and self.click_remover:
-                try:
-                    print("\n" + "=" * 60)
-                    declicked_path = self.output_dir / f"{audio_path.stem}_declicked.wav"
-                    self.click_remover.process(audio_path, declicked_path)
-                    # Use declicked audio for subsequent processing
-                    audio_path = declicked_path
-                except Exception as e:
-                    if self.verbose:
-                        print(f"\n⚠ Click removal failed: {e}")
-                        print("  Continuing with previous audio")
+                self._run_stage("Click removal", self.click_remover,
+                                audio_path, "_declicked")
 
             # Step 2: Enhance audio
             print("\n" + "=" * 60)

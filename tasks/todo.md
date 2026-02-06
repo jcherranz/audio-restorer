@@ -17,6 +17,10 @@
 ## Completed
 
 <!-- Move completed tasks here with date -->
+- [x] 2026-02-07: Iteration 38 — Fix noisy preset + quality-check pre-processing
+  - Removed `dereverb: True` from noisy preset (proven harmful)
+  - Refactored hum/click removal to use `_run_stage()` with DNSMOS quality checks
+  - Pre-processing no longer bypasses quality monitoring safety net
 - [x] 2026-02-07: Iteration 37 — Optional stage benchmark + AGENTS.md refresh
   - De-essing: neutral (ΔOVRL≈0.00), Comfort noise: neutral (ΔOVRL≈-0.04)
   - Hum removal: harmful (ΔOVRL=-0.25), Click removal: harmful (ΔOVRL=-0.23)

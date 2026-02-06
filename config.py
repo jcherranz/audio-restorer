@@ -139,9 +139,9 @@ PRESETS = {
         "comfort_noise": False,
     },
     "noisy": {
-        "description": "Aggressive denoising + all cleanup",
+        "description": "Aggressive denoising, quality-checked cleanup",
         "enhancer_type": "deepfilter" if _GPU_AVAILABLE else "torch_advanced",
-        "dereverb": True,
+        "dereverb": False,
         "diarize": False,
         "isolate_speaker": False,
         "distance_robust": False,

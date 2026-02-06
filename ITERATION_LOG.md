@@ -2412,3 +2412,56 @@ Updated `AGENTS.md` comprehensively:
   - Generative neural models (speech super-resolution) for SIG improvement
   - New source material with better baseline quality
   - Pipeline robustness / UX improvements
+
+---
+
+## [2026-02-07] Iteration 38: Fix Presets + Quality-Check Pre-Processing Stages
+
+### Summary
+Fixed a bug where the `noisy` preset enabled harmful processing modules (dereverb, hum removal,
+click removal) that we proved degrade quality in Iterations 36-37. Also discovered that hum
+removal and click removal ran WITHOUT quality checks — they were in the pre-processing section
+of the pipeline, bypassing the `_run_stage()` DNSMOS monitoring. Refactored both to use
+`_run_stage()` so they get the same auto-skip protection as all other optional stages.
+
+### Bug: noisy Preset Enabled Harmful Modules
+The `noisy` preset had:
+- `dereverb: True` — proven OVRL -1.30 (Iteration 36)
+- `remove_hum: True` — proven OVRL -0.25 (Iteration 37)
+- `remove_clicks: True` — proven OVRL -0.23 (Iteration 37)
+
+These would actively degrade audio quality for any user running `--preset noisy`.
+
+### Bug: Pre-Processing Bypassed Quality Checks
+Hum removal and click removal were in manual try/except blocks (lines 548-571 of pipeline.py)
+that ran WITHOUT DNSMOS quality monitoring. All other optional stages used `_run_stage()` which
+measures DNSMOS before/after and auto-skips degrading stages. Pre-processing was the only
+gap in the quality monitoring safety net.
+
+### Changes Made
+
+**1. Fixed `noisy` preset (`config.py`)**
+- Removed `dereverb: True` → `False` (proven harmful)
+- Kept `remove_hum: True` and `remove_clicks: True` because they are now quality-checked
+  and will be auto-skipped if they degrade DNSMOS
+- Updated description to "Aggressive denoising, quality-checked cleanup"
+
+**2. Refactored pre-processing to use `_run_stage()` (`pipeline.py`)**
+- Replaced 20 lines of manual try/except with 2 `_run_stage()` calls
+- Hum removal now gets DNSMOS quality check before/after
+- Click removal now gets DNSMOS quality check before/after
+- Both will be auto-skipped if they degrade OVRL or SIG by > 0.05
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `config.py` | `noisy` preset: `dereverb: False`, updated description |
+| `src/pipeline.py` | Pre-processing uses `_run_stage()` with DNSMOS quality checks |
+| `ITERATION_LOG.md` | Documented changes |
+| `tasks/todo.md` | Updated |
+
+### Verification
+- [x] 34 unit tests passing
+- [x] `noisy` preset no longer enables dereverb
+- [x] Pre-processing stages now quality-checked via `_run_stage()`
+- [x] Pipeline module loads and compiles clean
