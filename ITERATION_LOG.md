@@ -1814,3 +1814,133 @@ Diarize → Isolate → Distance → AGC → De-ess → Comfort Noise → Output
 ---
 
 **Last Updated:** 2026-02-01
+
+---
+
+## [2026-02-06] Iteration 19: Conservative Cleanup (Caches & Empty Dirs)
+
+### Summary
+Removed Python bytecode caches and empty directories to reduce clutter. No code or behavior changes.
+
+### Changes Made
+- Deleted all `__pycache__` directories
+- Removed empty `examples/` and `models/` directories
+
+### Files Modified
+- `tasks/todo.md` - Marked cleanup as completed
+
+### Files Removed
+- `__pycache__/`
+- `src/__pycache__/`
+- `tests/__pycache__/`
+- `tools/__pycache__/`
+- `examples/`
+- `models/`
+
+### Test Results
+- Not run (no code changes)
+
+### Notes
+Conservative cleanup only; no artifacts or binaries removed.
+
+### Next Steps
+Continue with code cleanup iterations.
+
+---
+
+## [2026-02-06] Iteration 20: Critical Fixes & Dead Code Removal
+
+### Summary
+Fixed critical bugs, removed dead code, and cleaned unused imports across the codebase.
+
+### Changes Made
+- Fixed missing `timedelta` import in pipeline.py (runtime crash on completion)
+- Fixed SimpleEnhancer: 44100Hz stereo → 48000Hz mono (matched pipeline standard)
+- Removed deprecated AudioEnhancer class (~220 lines of dead code)
+- Deleted `src/enhancer_base.py` (BaseEnhancer never inherited by any class)
+- Fixed `tests/multi_video_benchmark.py` broken API calls (YouTubeDownloader constructor, SOTAMetricsCalculator import)
+- Removed unused imports: `warnings` in ml_enhancer, `Tuple` in deepfilter_enhancer, `os` in config
+- Removed 7 redundant `import shutil` inside pipeline.py methods (module-level import exists)
+- Removed redundant `import tempfile` inside `_normalize_loudness`
+
+### Files Modified
+- `src/pipeline.py` — timedelta import, removed redundant imports
+- `src/audio_enhancer.py` — removed AudioEnhancer, fixed SimpleEnhancer
+- `src/ml_enhancer.py` — removed unused `import warnings`
+- `src/deepfilter_enhancer.py` — removed unused `Tuple` import
+- `config.py` — removed unused `import os`
+- `tests/multi_video_benchmark.py` — fixed broken API calls
+
+### Files Removed
+- `src/enhancer_base.py` — dead code (BaseEnhancer)
+
+### Test Results
+- All 15 source files compile clean (py_compile)
+- CLI runs successfully
+
+---
+
+## [2026-02-06] Iteration 21: Extract Shared Utilities
+
+### Summary
+Created `src/audio_utils.py` with shared audio I/O and processing functions, then refactored
+10 modules to use them. Eliminated ~200 lines of duplicated code.
+
+### Changes Made
+- Created `src/audio_utils.py` with: `load_mono_audio()`, `save_audio()`, `prevent_clipping()`, `stitch_chunks()`, `PEAK_LIMIT`
+- Refactored 10 modules to use shared utilities (replaced boilerplate audio loading, saving, anti-clipping)
+- Removed 8 instances of global `warnings.filterwarnings("ignore")` that suppressed all warnings process-wide
+- Removed duplicate `_stitch_chunks()` methods from deepfilter_enhancer.py and dereverb_enhancer.py (~80 lines)
+- Removed now-unused `import soundfile as sf` from 5 modules
+- Fixed 3 orphaned print statements caused by refactoring (comfort_noise, deesser, click_remover)
+
+### Files Created
+- `src/audio_utils.py` — shared audio utilities
+
+### Files Modified
+- `src/deepfilter_enhancer.py` — use audio_utils, removed _stitch_chunks
+- `src/dereverb_enhancer.py` — use audio_utils, removed _stitch_chunks
+- `src/deesser.py` — use audio_utils
+- `src/hum_remover.py` — use audio_utils
+- `src/click_remover.py` — use audio_utils
+- `src/comfort_noise.py` — use audio_utils
+- `src/speaker_agc.py` — use audio_utils
+- `src/distance_enhancer.py` — use audio_utils
+- `src/diarization.py` — use audio_utils
+- `src/speaker_isolation.py` — use audio_utils
+
+### Test Results
+- All 15 source files compile clean (py_compile)
+- All 9 refactored modules import successfully
+- CLI runs successfully
+
+---
+
+## [2026-02-06] Iteration 22: Pipeline Simplification & Config Cleanup
+
+### Summary
+Simplified pipeline.py with helper methods, cleaned config.py side effects,
+and updated project documentation to reflect cleanup work.
+
+### Changes Made
+- Added `_init_module()` helper — replaced 9 repetitive try/except import blocks (~130 lines → ~50 lines)
+- Added `_run_stage()` helper — replaced 6 repetitive try/except/shutil.move blocks (~70 lines → ~15 lines)
+- Removed config.py side effects: `TEMP_DIR.mkdir()`, `OUTPUT_DIR.mkdir()`, `MODELS_DIR.mkdir()` (pipeline creates dirs itself)
+- Removed unused `AUDIO_SETTINGS["output_sample_rate"]` (duplicate of `sample_rate`, never referenced)
+- Updated AGENTS.md: directory structure, enhancer interface, post-processing table, pipeline diagram, iteration plan
+- Updated ROADMAP.md: added cleanup iterations, updated current phase
+- Updated ITERATION_LOG.md: documented iterations 20-22
+
+### Files Modified
+- `src/pipeline.py` — _init_module, _run_stage helpers, simplified restore()
+- `config.py` — removed mkdir side effects, removed redundant key
+- `AGENTS.md` — comprehensive update
+- `ROADMAP.md` — added cleanup milestones
+
+### Test Results
+- All source files compile clean (py_compile)
+- Config imports successfully
+- CLI runs successfully
+
+### Next Steps
+Ready for Phase 5: Echo & Reverb Removal.

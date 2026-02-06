@@ -32,8 +32,7 @@ import soundfile as sf
 from scipy import signal
 from scipy.ndimage import binary_dilation, binary_erosion
 from typing import List, Tuple
-import warnings
-warnings.filterwarnings("ignore")
+from .audio_utils import load_mono_audio, save_audio, prevent_clipping
 
 
 class ClickRemover:
@@ -266,17 +265,9 @@ class ClickRemover:
             print(f"\n🔊 Click/Pop Removal: {input_path.name}")
 
         # Load audio
-        audio, sr = sf.read(str(input_path), dtype='float32')
-
-        # Convert to mono if stereo
-        if len(audio.shape) > 1:
-            audio = np.mean(audio, axis=1)
-            if self.verbose:
-                print("  Converted to mono")
+        audio, sr = load_mono_audio(input_path, verbose=self.verbose)
 
         if self.verbose:
-            duration = len(audio) / sr
-            print(f"  Duration: {duration:.1f}s at {sr}Hz")
             print(f"  Threshold: {self.threshold_db:.1f} dB above local RMS")
 
         # Detect clicks
@@ -309,16 +300,8 @@ class ClickRemover:
             if self.verbose:
                 print("  No clicks detected")
 
-        # Normalize to prevent clipping
-        max_val = np.max(np.abs(output))
-        if max_val > 0.95:
-            output = output * (0.95 / max_val)
-            if self.verbose:
-                print("  Normalized to prevent clipping")
-
-        # Save output
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        sf.write(str(output_path), output, sr)
+        output = prevent_clipping(output, verbose=self.verbose)
+        save_audio(output, output_path, sr)
 
         if self.verbose:
             print(f"  ✓ Saved: {output_path}")

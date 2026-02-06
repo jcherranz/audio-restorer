@@ -3,7 +3,6 @@ Audio Restoration Configuration
 Edit these settings to customize the restoration process
 """
 
-import os
 from pathlib import Path
 
 # Base paths
@@ -16,17 +15,11 @@ MODELS_DIR = BASE_DIR / "models"
 FFMPEG_PATH = str(BASE_DIR / "ffmpeg") if (BASE_DIR / "ffmpeg").exists() else "ffmpeg"
 FFPROBE_PATH = str(BASE_DIR / "ffprobe") if (BASE_DIR / "ffprobe").exists() else "ffprobe"
 
-# Ensure directories exist
-TEMP_DIR.mkdir(exist_ok=True)
-OUTPUT_DIR.mkdir(exist_ok=True)
-MODELS_DIR.mkdir(exist_ok=True)
-
 # Audio Settings
 # NOTE: Using 48kHz throughout for consistency with DeepFilterNet's native rate.
 # This avoids quality loss from multiple resampling operations.
 AUDIO_SETTINGS = {
     "sample_rate": 48000,        # Matches DeepFilterNet native rate
-    "output_sample_rate": 48000,  # Keep 48kHz for output
     "format": "wav",             # Intermediate format
     "output_format": "mp3",      # Final audio format
     "bitrate": "192k",           # Output bitrate

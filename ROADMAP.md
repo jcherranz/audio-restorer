@@ -241,9 +241,15 @@ Conference rooms often have:
 5. ✅ Click/pop removal - Iteration 17
 6. ✅ Comfort noise - Iteration 18
 
+### Cleanup: Code Quality (Complete)
+1. ✅ Critical fixes & dead code removal - Iteration 20
+2. ✅ Extract shared utilities (audio_utils.py) - Iteration 21
+3. ✅ Pipeline simplification & config cleanup - Iteration 22
+
 ### Next: Phase 5 (Echo & Reverb Removal)
-- Iteration 19: Processing chain optimization
-- Iteration 20: Quality tracking/DNSMOS target
+- Advanced dereverberation improvements
+- Processing chain optimization
+- Quality tracking/DNSMOS target
 - Note: Basic de-reverberation already available via `--dereverb` flag.
 
 ### Success Metrics by Phase
@@ -277,6 +283,6 @@ Conference rooms often have:
 
 ---
 
-**Last Updated:** 2026-02-05
-**Current Phase:** Phase 4 COMPLETE - Ready for Phase 5
-**Next Milestone:** Processing chain optimization (Iteration 19)
+**Last Updated:** 2026-02-06
+**Current Phase:** Cleanup COMPLETE - Ready for Phase 5
+**Next Milestone:** Phase 5 - Echo & Reverb Removal

@@ -9,13 +9,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import json
 import numpy as np
-import soundfile as sf
 from scipy import signal
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
 from datetime import timedelta
-import warnings
-warnings.filterwarnings("ignore")
+from .audio_utils import load_mono_audio
 
 
 @dataclass
@@ -66,9 +64,7 @@ class SpeakerDiarizer:
             print(f"   Audio: {audio_path.name}")
         
         # Load audio
-        audio, sr = sf.read(str(audio_path), dtype='float32')
-        if len(audio.shape) > 1:
-            audio = np.mean(audio, axis=1)
+        audio, sr = load_mono_audio(audio_path, verbose=self.verbose)
         
         # Resample to 16kHz if needed
         if sr != 16000:

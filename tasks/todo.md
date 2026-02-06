@@ -5,6 +5,7 @@
 ## In Progress
 
 <!-- Tasks currently being worked on -->
+<!-- None -->
 
 ## Pending
 
@@ -15,6 +16,7 @@
 ## Completed
 
 <!-- Move completed tasks here with date -->
+- [x] 2026-02-06: Conservative repo cleanup (remove caches/empty dirs)
 - [x] 2026-02-01: Iterations 13-18 (Audio quality refinement)
 - [x] 2026-02-01: Iterations 9-12 (Speaker enhancement)
 - [x] 2026-01-31: Iterations 0-8 (ML enhancement, infrastructure)

@@ -31,8 +31,7 @@ import numpy as np
 import soundfile as sf
 from scipy import signal
 from typing import Tuple, Optional
-import warnings
-warnings.filterwarnings("ignore")
+from .audio_utils import load_mono_audio, save_audio, prevent_clipping
 
 
 class HumRemover:
@@ -227,17 +226,7 @@ class HumRemover:
             print(f"\n🔌 Hum Removal: {input_path.name}")
 
         # Load audio
-        audio, sr = sf.read(str(input_path), dtype='float32')
-
-        # Convert to mono if stereo
-        if len(audio.shape) > 1:
-            audio = np.mean(audio, axis=1)
-            if self.verbose:
-                print("  Converted to mono")
-
-        if self.verbose:
-            duration = len(audio) / sr
-            print(f"  Duration: {duration:.1f}s at {sr}Hz")
+        audio, sr = load_mono_audio(input_path, verbose=self.verbose)
 
         # Auto-detect hum frequency if enabled
         if self.auto_detect:
@@ -267,16 +256,8 @@ class HumRemover:
             print(f"  Hum level after: {hum_after:.1f} dB")
             print(f"  Hum reduction: {reduction:.1f} dB")
 
-        # Normalize to prevent clipping
-        max_val = np.max(np.abs(filtered))
-        if max_val > 0.95:
-            filtered = filtered * (0.95 / max_val)
-            if self.verbose:
-                print("  Normalized to prevent clipping")
-
-        # Save output
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        sf.write(str(output_path), filtered, sr)
+        filtered = prevent_clipping(filtered, verbose=self.verbose)
+        save_audio(filtered, output_path, sr)
 
         if self.verbose:
             print(f"  ✓ Saved: {output_path}")

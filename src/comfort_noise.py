@@ -26,10 +26,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import numpy as np
-import soundfile as sf
 from typing import List, Tuple
-import warnings
-warnings.filterwarnings("ignore")
+from .audio_utils import load_mono_audio, save_audio, prevent_clipping
 
 
 class ComfortNoiseGenerator:
@@ -213,17 +211,9 @@ class ComfortNoiseGenerator:
             print(f"\n🔇 Comfort Noise: {input_path.name}")
 
         # Load audio
-        audio, sr = sf.read(str(input_path), dtype='float32')
-
-        # Convert to mono if stereo
-        if len(audio.shape) > 1:
-            audio = np.mean(audio, axis=1)
-            if self.verbose:
-                print("  Converted to mono")
+        audio, sr = load_mono_audio(input_path, verbose=self.verbose)
 
         if self.verbose:
-            duration = len(audio) / sr
-            print(f"  Duration: {duration:.1f}s at {sr}Hz")
             print(f"  Noise type: {self.spectrum_shape}")
             print(f"  Target level: {self.target_level_db:.1f} dB")
 
@@ -242,8 +232,7 @@ class ComfortNoiseGenerator:
             # No silence detected, just copy the file
             if self.verbose:
                 print("  No silence regions found, saving unchanged")
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            sf.write(str(output_path), audio, sr)
+            save_audio(audio, output_path, sr)
             return output_path
 
         # Generate comfort noise for entire audio length
@@ -297,16 +286,8 @@ class ComfortNoiseGenerator:
         if self.verbose:
             print(f"  Added noise to {len(silence_regions)} region(s)")
 
-        # Normalize to prevent clipping (shouldn't be needed at -60dB, but safe)
-        max_val = np.max(np.abs(output))
-        if max_val > 0.95:
-            output = output * (0.95 / max_val)
-            if self.verbose:
-                print("  Normalized to prevent clipping")
-
-        # Save output
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        sf.write(str(output_path), output, sr)
+        output = prevent_clipping(output, verbose=self.verbose)
+        save_audio(output, output_path, sr)
 
         if self.verbose:
             print(f"  ✓ Saved: {output_path}")

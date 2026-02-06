@@ -127,16 +127,16 @@ def download_video_audio(video: Dict, output_dir: Path,
         print(f"  Downloading: {video['url']}")
 
     try:
-        downloader = YouTubeDownloader(output_dir=output_dir, verbose=False)
-        result = downloader.download(video["url"], audio_only=True)
+        downloader = YouTubeDownloader(temp_dir=output_dir, verbose=False)
+        audio_path = downloader.download_audio_only(video["url"])
 
-        if result.success and result.audio_path:
+        if audio_path and audio_path.exists():
             # Rename to standard format
-            shutil.move(str(result.audio_path), str(cached_audio))
+            shutil.move(str(audio_path), str(cached_audio))
             return cached_audio
         else:
             if verbose:
-                print(f"  Download failed: {result.error_message}")
+                print(f"  Download failed: no audio file produced")
             return None
     except Exception as e:
         if verbose:
@@ -164,9 +164,8 @@ def run_enhancer(audio_path: Path, enhancer_type: str,
             verbose=False
         )
 
-        # Get the enhancer and run directly on audio
-        enhancer = pipeline._create_enhancer()
-        enhancer.enhance(audio_path, output_path)
+        # Run enhancer directly on audio
+        pipeline.enhancer.enhance(audio_path, output_path)
 
         processing_time = time.time() - start_time
 
@@ -194,9 +193,9 @@ def run_enhancer(audio_path: Path, enhancer_type: str,
 def calculate_sota_metrics(audio_path: Path) -> Optional[Dict]:
     """Calculate SOTA metrics (DNSMOS) for an audio file."""
     try:
-        from tests.sota_benchmark import SOTAMetricsCalculator
+        from src.sota_metrics import SOTAMetricsCalculator
         calculator = SOTAMetricsCalculator(verbose=False)
-        metrics = calculator.calculate_all(audio_path)
+        metrics = calculator.calculate(audio_path)
         return metrics
     except Exception as e:
         return {"error": str(e)}

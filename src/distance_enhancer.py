@@ -13,14 +13,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import json
 import numpy as np
-import soundfile as sf
 from scipy import signal
 from scipy.ndimage import uniform_filter1d
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
 from datetime import timedelta
-import warnings
-warnings.filterwarnings("ignore")
+from .audio_utils import load_mono_audio, save_audio, prevent_clipping
 
 
 @dataclass
@@ -308,9 +306,7 @@ class DistanceRobustEnhancer:
             print(f"   Input: {input_path.name}")
 
         # Load audio
-        audio, sr = sf.read(str(input_path), dtype='float32')
-        if len(audio.shape) > 1:
-            audio = np.mean(audio, axis=1)
+        audio, sr = load_mono_audio(input_path, verbose=self.verbose)
 
         self.estimator.sample_rate = sr
 
@@ -338,7 +334,7 @@ class DistanceRobustEnhancer:
 
         if not estimates:
             # No segments, just copy the file
-            sf.write(str(output_path), audio, sr)
+            save_audio(audio, output_path, sr)
             return EnhancementResult(
                 output_path=output_path,
                 segments_processed=0,
@@ -367,8 +363,7 @@ class DistanceRobustEnhancer:
         output_loudness_db = 20 * np.log10(output_rms + 1e-10)
 
         # Save output
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        sf.write(str(output_path), enhanced_audio, sr)
+        save_audio(enhanced_audio, output_path, sr)
 
         average_distance = np.mean([e.relative_distance for e in estimates])
 
@@ -530,11 +525,7 @@ class DistanceRobustEnhancer:
         gain_linear = 10 ** (gain_db / 20)
         normalized = audio * gain_linear
 
-        # Prevent clipping
-        peak = np.max(np.abs(normalized))
-        if peak > 0.95:
-            normalized = normalized * (0.95 / peak)
-
+        normalized = prevent_clipping(normalized)
         return normalized
 
 

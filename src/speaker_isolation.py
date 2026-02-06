@@ -9,12 +9,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import json
 import numpy as np
-import soundfile as sf
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
 from datetime import timedelta
-import warnings
-warnings.filterwarnings("ignore")
+from .audio_utils import load_mono_audio, save_audio
 
 
 @dataclass
@@ -101,9 +99,7 @@ class SpeakerIsolator:
             print(f"   Input: {input_audio.name}")
         
         # Load audio
-        audio, sr = sf.read(str(input_audio), dtype='float32')
-        if len(audio.shape) > 1:
-            audio = np.mean(audio, axis=1)
+        audio, sr = load_mono_audio(input_audio, verbose=self.verbose)
         
         original_duration = len(audio) / sr
         
@@ -116,7 +112,7 @@ class SpeakerIsolator:
         if not main_segments:
             if self.verbose:
                 print("   No main speaker found, keeping all audio")
-            sf.write(str(output_audio), audio, sr)
+            save_audio(audio, output_audio, sr)
             return IsolationResult(
                 output_path=output_audio,
                 original_duration=original_duration,
@@ -149,7 +145,7 @@ class SpeakerIsolator:
         if not isolated_segments:
             if self.verbose:
                 print("   No segments extracted")
-            sf.write(str(output_audio), audio, sr)
+            save_audio(audio, output_audio, sr)
             return IsolationResult(
                 output_path=output_audio,
                 original_duration=original_duration,
@@ -167,8 +163,7 @@ class SpeakerIsolator:
         retention_percentage = (isolated_duration / original_duration) * 100
         
         # Save output
-        output_audio.parent.mkdir(parents=True, exist_ok=True)
-        sf.write(str(output_audio), isolated_audio, sr)
+        save_audio(isolated_audio, output_audio, sr)
         
         if self.verbose:
             print(f"   Main speaker: {main_speaker}")

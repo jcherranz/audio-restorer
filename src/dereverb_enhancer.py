@@ -23,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import numpy as np
 import soundfile as sf
 from typing import Optional
+from .audio_utils import load_mono_audio, save_audio, prevent_clipping, stitch_chunks
 
 
 class DereverbEnhancer:
@@ -96,48 +97,6 @@ class DereverbEnhancer:
 
         return z
 
-    def _stitch_chunks(self, chunks: list, overlap_samples: int) -> np.ndarray:
-        """
-        Stitch audio chunks together with crossfade overlap.
-
-        Args:
-            chunks: List of numpy arrays (audio chunks)
-            overlap_samples: Number of samples to overlap/crossfade
-
-        Returns:
-            Single stitched audio array
-        """
-        if len(chunks) == 1:
-            return chunks[0]
-
-        # Create crossfade windows
-        fade_in = np.linspace(0, 1, overlap_samples).astype(np.float32)
-        fade_out = np.linspace(1, 0, overlap_samples).astype(np.float32)
-
-        # Calculate total length
-        total_length = sum(len(c) for c in chunks) - overlap_samples * (len(chunks) - 1)
-        result = np.zeros(total_length, dtype=np.float32)
-
-        pos = 0
-        for i, chunk in enumerate(chunks):
-            if i == 0:
-                # First chunk: no fade in, fade out at end
-                result[:len(chunk) - overlap_samples] = chunk[:-overlap_samples]
-                result[len(chunk) - overlap_samples:len(chunk)] = chunk[-overlap_samples:] * fade_out
-                pos = len(chunk) - overlap_samples
-            elif i == len(chunks) - 1:
-                # Last chunk: fade in at start, no fade out
-                result[pos:pos + overlap_samples] += chunk[:overlap_samples] * fade_in
-                result[pos + overlap_samples:pos + len(chunk)] = chunk[overlap_samples:]
-            else:
-                # Middle chunks: fade in and fade out
-                result[pos:pos + overlap_samples] += chunk[:overlap_samples] * fade_in
-                result[pos + overlap_samples:pos + len(chunk) - overlap_samples] = chunk[overlap_samples:-overlap_samples]
-                result[pos + len(chunk) - overlap_samples:pos + len(chunk)] = chunk[-overlap_samples:] * fade_out
-                pos += len(chunk) - overlap_samples
-
-        return result
-
     def enhance(self, input_path: Path, output_path: Path, target_sr: int = 48000) -> Path:
         """
         Remove reverberation from audio.
@@ -169,17 +128,7 @@ class DereverbEnhancer:
             print(f"\n🔊 De-reverberation: {input_path.name}")
 
         # Load audio
-        audio, sr = sf.read(input_path, dtype='float32')
-
-        if self.verbose:
-            duration = len(audio) / sr
-            print(f"  Loaded: {duration:.1f}s at {sr}Hz")
-
-        # Convert to mono if stereo
-        if len(audio.shape) > 1:
-            audio = np.mean(audio, axis=1)
-            if self.verbose:
-                print("  Converted to mono")
+        audio, sr = load_mono_audio(input_path, verbose=self.verbose)
 
         # STFT parameters - tuned for speech
         # Size 512 @ 48kHz gives ~10.7ms frames (good for speech)
@@ -231,7 +180,7 @@ class DereverbEnhancer:
         if len(dereverb_chunks) == 1:
             z = dereverb_chunks[0]
         else:
-            z = self._stitch_chunks(dereverb_chunks, overlap_samples)
+            z = stitch_chunks(dereverb_chunks, overlap_samples)
 
         if self.verbose:
             print("  De-reverberation complete")
@@ -242,17 +191,8 @@ class DereverbEnhancer:
         elif len(z) < len(audio):
             z = np.pad(z, (0, len(audio) - len(z)))
 
-        # Normalize to prevent clipping
-        max_val = np.max(np.abs(z))
-        if max_val > 0.95:
-            z = z * (0.95 / max_val)
-            if self.verbose:
-                print("  Normalized to prevent clipping")
-
-        # Save output
-        output_path = Path(output_path)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        sf.write(output_path, z.astype(np.float32), sr)
+        z = prevent_clipping(z, verbose=self.verbose)
+        save_audio(z.astype(np.float32), Path(output_path), sr)
 
         if self.verbose:
             print(f"  ✓ Saved: {output_path}")

@@ -6,15 +6,15 @@ Main orchestrator that coordinates the entire process
 import shutil
 import sys
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List  # List used in restore_batch
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Add parent to path for config
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from .downloader import YouTubeDownloader
-from .audio_enhancer import SimpleEnhancer  # AudioEnhancer is legacy, not used
+from .audio_enhancer import SimpleEnhancer
 
 
 @dataclass
@@ -109,136 +109,56 @@ class AudioRestorationPipeline:
         # Fallback enhancer
         self.simple_enhancer = SimpleEnhancer(verbose)
 
-        # De-reverberation (optional, applied after primary enhancement)
-        self.dereverb_enabled = dereverb or DEREVERB.get("enabled", False)
-        self.dereverb_enhancer = None
-        if self.dereverb_enabled:
-            try:
-                from .dereverb_enhancer import DereverbEnhancer
-                self.dereverb_enhancer = DereverbEnhancer(
-                    taps=DEREVERB.get("taps", 10),
-                    delay=DEREVERB.get("delay", 3),
-                    iterations=DEREVERB.get("iterations", 3),
-                    verbose=verbose
-                )
-                if verbose:
-                    print("De-reverberation enabled (NARA-WPE)")
-            except ImportError as e:
-                if verbose:
-                    print(f"⚠ Could not load de-reverberator: {e}")
-                self.dereverb_enabled = False
+        # Optional modules — loaded on demand with graceful fallback
+        self.dereverb_enabled, self.dereverb_enhancer = self._init_module(
+            dereverb or DEREVERB.get("enabled", False),
+            ".dereverb_enhancer", "DereverbEnhancer",
+            "De-reverberation (NARA-WPE)",
+            taps=DEREVERB.get("taps", 10),
+            delay=DEREVERB.get("delay", 3),
+            iterations=DEREVERB.get("iterations", 3),
+            verbose=verbose
+        )
 
-        # Speaker diarization (optional, identifies who is speaking)
-        self.diarize_enabled = diarize
-        self.diarizer = None
-        if self.diarize_enabled:
-            try:
-                from .diarization import SpeakerDiarizer
-                self.diarizer = SpeakerDiarizer(verbose=verbose)
-                if verbose:
-                    print("Speaker diarization enabled")
-            except ImportError as e:
-                if verbose:
-                    print(f"⚠ Could not load diarization: {e}")
-                self.diarize_enabled = False
+        self.diarize_enabled, self.diarizer = self._init_module(
+            diarize, ".diarization", "SpeakerDiarizer",
+            "Speaker diarization", verbose=verbose
+        )
 
-        # Speaker isolation (optional, removes other speakers/audience)
-        self.isolate_enabled = isolate_speaker
-        self.isolator = None
-        if self.isolate_enabled:
-            try:
-                from .speaker_isolation import SpeakerIsolator
-                self.isolator = SpeakerIsolator(verbose=verbose)
-                if verbose:
-                    print("Speaker isolation enabled")
-            except ImportError as e:
-                if verbose:
-                    print(f"⚠ Could not load speaker isolation: {e}")
-                self.isolate_enabled = False
+        self.isolate_enabled, self.isolator = self._init_module(
+            isolate_speaker, ".speaker_isolation", "SpeakerIsolator",
+            "Speaker isolation", verbose=verbose
+        )
 
-        # Distance-robust enhancement (optional, adaptive gain/EQ per speaker)
-        self.distance_robust_enabled = distance_robust
-        self.distance_enhancer = None
-        if self.distance_robust_enabled:
-            try:
-                from .distance_enhancer import DistanceRobustEnhancer
-                self.distance_enhancer = DistanceRobustEnhancer(verbose=verbose)
-                if verbose:
-                    print("Distance-robust enhancement enabled")
-            except ImportError as e:
-                if verbose:
-                    print(f"⚠ Could not load distance enhancer: {e}")
-                self.distance_robust_enabled = False
+        self.distance_robust_enabled, self.distance_enhancer = self._init_module(
+            distance_robust, ".distance_enhancer", "DistanceRobustEnhancer",
+            "Distance-robust enhancement", verbose=verbose
+        )
 
-        # Per-speaker AGC (optional, normalizes each speaker's volume)
-        self.speaker_agc_enabled = speaker_agc
-        self.speaker_agc = None
-        if self.speaker_agc_enabled:
-            try:
-                from .speaker_agc import SpeakerAGC
-                self.speaker_agc = SpeakerAGC(verbose=verbose)
-                if verbose:
-                    print("Per-speaker AGC enabled")
-            except ImportError as e:
-                if verbose:
-                    print(f"⚠ Could not load speaker AGC: {e}")
-                self.speaker_agc_enabled = False
+        self.speaker_agc_enabled, self.speaker_agc = self._init_module(
+            speaker_agc, ".speaker_agc", "SpeakerAGC",
+            "Per-speaker AGC", verbose=verbose
+        )
 
-        # De-essing (optional, reduces harsh sibilant sounds)
-        self.deess_enabled = deess
-        self.deesser = None
-        if self.deess_enabled:
-            try:
-                from .deesser import DeEsser
-                self.deesser = DeEsser(verbose=verbose)
-                if verbose:
-                    print("De-essing enabled")
-            except ImportError as e:
-                if verbose:
-                    print(f"⚠ Could not load de-esser: {e}")
-                self.deess_enabled = False
+        self.deess_enabled, self.deesser = self._init_module(
+            deess, ".deesser", "DeEsser",
+            "De-essing", verbose=verbose
+        )
 
-        # Hum removal (optional, removes power line hum)
-        self.remove_hum_enabled = remove_hum
-        self.hum_remover = None
-        if self.remove_hum_enabled:
-            try:
-                from .hum_remover import HumRemover
-                self.hum_remover = HumRemover(verbose=verbose)
-                if verbose:
-                    print("Hum removal enabled (auto-detect 50/60 Hz)")
-            except ImportError as e:
-                if verbose:
-                    print(f"⚠ Could not load hum remover: {e}")
-                self.remove_hum_enabled = False
+        self.remove_hum_enabled, self.hum_remover = self._init_module(
+            remove_hum, ".hum_remover", "HumRemover",
+            "Hum removal (auto-detect 50/60 Hz)", verbose=verbose
+        )
 
-        # Click removal (optional, removes transient artifacts)
-        self.remove_clicks_enabled = remove_clicks
-        self.click_remover = None
-        if self.remove_clicks_enabled:
-            try:
-                from .click_remover import ClickRemover
-                self.click_remover = ClickRemover(verbose=verbose)
-                if verbose:
-                    print("Click removal enabled")
-            except ImportError as e:
-                if verbose:
-                    print(f"⚠ Could not load click remover: {e}")
-                self.remove_clicks_enabled = False
+        self.remove_clicks_enabled, self.click_remover = self._init_module(
+            remove_clicks, ".click_remover", "ClickRemover",
+            "Click removal", verbose=verbose
+        )
 
-        # Comfort noise (optional, fills silence with subtle noise)
-        self.comfort_noise_enabled = comfort_noise
-        self.comfort_noise_generator = None
-        if self.comfort_noise_enabled:
-            try:
-                from .comfort_noise import ComfortNoiseGenerator
-                self.comfort_noise_generator = ComfortNoiseGenerator(verbose=verbose)
-                if verbose:
-                    print("Comfort noise enabled (pink noise at -60dB)")
-            except ImportError as e:
-                if verbose:
-                    print(f"⚠ Could not load comfort noise generator: {e}")
-                self.comfort_noise_enabled = False
+        self.comfort_noise_enabled, self.comfort_noise_generator = self._init_module(
+            comfort_noise, ".comfort_noise", "ComfortNoiseGenerator",
+            "Comfort noise (pink noise at -60dB)", verbose=verbose
+        )
 
     def _create_enhancer(self, 
                          enhancer_type: str,
@@ -298,7 +218,46 @@ class AudioRestorationPipeline:
         
         else:
             raise ValueError(f"Unknown enhancer type: {enhancer_type}")
-    
+
+    def _init_module(self, enabled, module_path, class_name, label, **kwargs):
+        """Try to load an optional processing module.
+
+        Returns:
+            (enabled, instance) — enabled is False if import failed.
+        """
+        if not enabled:
+            return False, None
+        try:
+            import importlib
+            mod = importlib.import_module(module_path, package="src")
+            cls = getattr(mod, class_name)
+            instance = cls(**kwargs)
+            if self.verbose:
+                print(f"{label} enabled")
+            return True, instance
+        except ImportError as e:
+            if self.verbose:
+                print(f"⚠ Could not load {label}: {e}")
+            return False, None
+
+    def _run_stage(self, name, processor, audio_path, suffix, method="process", **kwargs):
+        """Run an optional processing stage with error handling.
+
+        Writes to a temp file, then replaces the input on success.
+        Returns True if the stage succeeded, False otherwise.
+        """
+        try:
+            print("\n" + "=" * 60)
+            stage_output = self.output_dir / f"{audio_path.stem}{suffix}.wav"
+            getattr(processor, method)(audio_path, stage_output, **kwargs)
+            shutil.move(str(stage_output), str(audio_path))
+            return True
+        except Exception as e:
+            if self.verbose:
+                print(f"\n⚠ {name} failed: {e}")
+                print(f"  Continuing without {name.lower()}")
+            return False
+
     def _normalize_loudness(self, audio_path: Path, target_lufs: float = -16.0) -> None:
         """
         Apply EBU R128 loudness normalization.
@@ -311,7 +270,6 @@ class AudioRestorationPipeline:
             target_lufs: Target integrated loudness in LUFS (default: -16, podcast standard)
         """
         import subprocess
-        import tempfile
 
         if self.verbose:
             print(f"\n🔊 Normalizing loudness to {target_lufs} LUFS...")
@@ -344,7 +302,6 @@ class AudioRestorationPipeline:
                 return
 
             # Replace original with normalized version
-            import shutil
             shutil.move(str(temp_output), str(audio_path))
 
             if self.verbose:
@@ -455,16 +412,8 @@ class AudioRestorationPipeline:
 
             # Apply de-reverberation if enabled (after noise reduction)
             if self.dereverb_enabled and self.dereverb_enhancer:
-                try:
-                    # De-reverb works on the enhanced audio (in-place)
-                    dereverb_output = self.output_dir / f"{audio_path.stem}_dereverb.wav"
-                    self.dereverb_enhancer.enhance(enhanced_audio_path, dereverb_output)
-                    # Replace enhanced audio with dereverberated version
-                    import shutil
-                    shutil.move(str(dereverb_output), str(enhanced_audio_path))
-                except Exception as e:
-                    print(f"\n⚠ De-reverberation failed: {e}")
-                    print("  Continuing with enhanced audio (no dereverb)")
+                self._run_stage("De-reverberation", self.dereverb_enhancer,
+                                enhanced_audio_path, "_dereverb", method="enhance")
 
             # Apply loudness normalization (EBU R128)
             target_lufs = self._enhancement_config.get("target_loudness", -16)
@@ -523,7 +472,6 @@ class AudioRestorationPipeline:
                         )
 
                     # Replace enhanced audio with isolated version
-                    import shutil
                     shutil.move(str(isolated_output), str(enhanced_audio_path))
 
                     if self.verbose:
@@ -537,92 +485,28 @@ class AudioRestorationPipeline:
                         print("  Continuing with all speakers")
 
             # Step 7: Distance-robust enhancement (optional)
+            diar_json = diarization_output if diarization_output and diarization_output.exists() else None
+
             if self.distance_robust_enabled and self.distance_enhancer:
-                try:
-                    print("\n" + "=" * 60)
-                    distance_output = self.output_dir / f"{audio_path.stem}_distance_enhanced.wav"
-
-                    # Use diarization if available for per-speaker analysis
-                    distance_result = self.distance_enhancer.enhance(
-                        enhanced_audio_path,
-                        distance_output,
-                        diarization_json=diarization_output if diarization_output and diarization_output.exists() else None
-                    )
-
-                    # Replace enhanced audio with distance-enhanced version
-                    import shutil
-                    shutil.move(str(distance_output), str(enhanced_audio_path))
-
-                    if self.verbose:
-                        print(f"\n   Segments analyzed: {distance_result.segments_processed}")
-                        print(f"   Average distance: {distance_result.average_distance:.2f} (0=close, 1=far)")
-                        if distance_result.gain_adjustments:
-                            print(f"   Gain range: {min(distance_result.gain_adjustments):.1f} to {max(distance_result.gain_adjustments):.1f} dB")
-
-                except Exception as e:
-                    if self.verbose:
-                        print(f"\n⚠ Distance-robust enhancement failed: {e}")
-                        print("  Continuing without distance compensation")
+                self._run_stage("Distance-robust enhancement", self.distance_enhancer,
+                                enhanced_audio_path, "_distance_enhanced",
+                                method="enhance", diarization_json=diar_json)
 
             # Step 8: Per-speaker AGC (optional)
             if self.speaker_agc_enabled and self.speaker_agc:
-                try:
-                    print("\n" + "=" * 60)
-                    agc_output = self.output_dir / f"{audio_path.stem}_agc.wav"
+                self._run_stage("Per-speaker AGC", self.speaker_agc,
+                                enhanced_audio_path, "_agc",
+                                diarization_json=diar_json)
 
-                    # Use diarization if available
-                    agc_result = self.speaker_agc.process(
-                        enhanced_audio_path,
-                        agc_output,
-                        diarization_json=diarization_output if diarization_output and diarization_output.exists() else None
-                    )
-
-                    # Replace enhanced audio with AGC version
-                    import shutil
-                    shutil.move(str(agc_output), str(enhanced_audio_path))
-
-                    if self.verbose:
-                        print(f"\n   Speakers normalized: {agc_result.num_speakers}")
-                        print(f"   Gain range: {agc_result.min_gain_applied_db:+.1f} to {agc_result.max_gain_applied_db:+.1f} dB")
-
-                except Exception as e:
-                    if self.verbose:
-                        print(f"\n⚠ Per-speaker AGC failed: {e}")
-                        print("  Continuing without speaker normalization")
-
-            # Step 9: De-essing (optional, reduces sibilant harshness)
+            # Step 9: De-essing (optional)
             if self.deess_enabled and self.deesser:
-                try:
-                    print("\n" + "=" * 60)
-                    deess_output = self.output_dir / f"{audio_path.stem}_deessed.wav"
+                self._run_stage("De-essing", self.deesser,
+                                enhanced_audio_path, "_deessed")
 
-                    self.deesser.process(enhanced_audio_path, deess_output)
-
-                    # Replace enhanced audio with de-essed version
-                    import shutil
-                    shutil.move(str(deess_output), str(enhanced_audio_path))
-
-                except Exception as e:
-                    if self.verbose:
-                        print(f"\n⚠ De-essing failed: {e}")
-                        print("  Continuing without de-essing")
-
-            # Step 10: Comfort noise (optional, fills silence with subtle noise)
+            # Step 10: Comfort noise (optional)
             if self.comfort_noise_enabled and self.comfort_noise_generator:
-                try:
-                    print("\n" + "=" * 60)
-                    comfort_output = self.output_dir / f"{audio_path.stem}_comfort.wav"
-
-                    self.comfort_noise_generator.process(enhanced_audio_path, comfort_output)
-
-                    # Replace enhanced audio with comfort noise version
-                    import shutil
-                    shutil.move(str(comfort_output), str(enhanced_audio_path))
-
-                except Exception as e:
-                    if self.verbose:
-                        print(f"\n⚠ Comfort noise failed: {e}")
-                        print("  Continuing without comfort noise")
+                self._run_stage("Comfort noise", self.comfort_noise_generator,
+                                enhanced_audio_path, "_comfort")
 
             # Success!
             result.success = True

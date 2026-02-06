@@ -18,13 +18,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import json
 import numpy as np
-import soundfile as sf
 from scipy import signal
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
 from datetime import timedelta
-import warnings
-warnings.filterwarnings("ignore")
+from .audio_utils import load_mono_audio, save_audio, prevent_clipping
 
 
 @dataclass
@@ -259,11 +257,7 @@ class SpeakerAGC:
                 # Short segment: apply uniform gain
                 output[start_sample:end_sample] *= gain_linear
 
-        # Prevent clipping
-        peak = np.max(np.abs(output))
-        if peak > 0.95:
-            output = output * (0.95 / peak)
-
+        output = prevent_clipping(output)
         return output
 
     def process(self, input_path: Path,
@@ -291,9 +285,7 @@ class SpeakerAGC:
             print(f"   Input: {input_path.name}")
 
         # Load audio
-        audio, sr = sf.read(str(input_path), dtype='float32')
-        if len(audio.shape) > 1:
-            audio = np.mean(audio, axis=1)
+        audio, sr = load_mono_audio(input_path, verbose=self.verbose)
 
         duration = len(audio) / sr
 
@@ -333,8 +325,7 @@ class SpeakerAGC:
         output_audio = self.apply_agc(audio, sr, diarization, speaker_stats)
 
         # Save output
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        sf.write(str(output_path), output_audio, sr)
+        save_audio(output_audio, output_path, sr)
 
         # Calculate result statistics
         gains = [s.gain_adjustment_db for s in speaker_stats]

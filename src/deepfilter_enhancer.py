@@ -24,7 +24,8 @@ import numpy as np
 import torch
 import soundfile as sf
 import warnings
-from typing import Optional, Tuple
+from typing import Optional
+from .audio_utils import load_mono_audio, save_audio, prevent_clipping, stitch_chunks
 
 # Suppress torchaudio deprecation warning from df library
 warnings.filterwarnings("ignore", message=".*torchaudio.backend.common.*")
@@ -128,48 +129,6 @@ class DeepFilterNetEnhancer:
         import librosa
         return librosa.resample(audio, orig_sr=orig_sr, target_sr=target_sr)
 
-    def _stitch_chunks(self, chunks: list, overlap_samples: int) -> np.ndarray:
-        """
-        Stitch audio chunks together with crossfade overlap.
-
-        Args:
-            chunks: List of numpy arrays (audio chunks)
-            overlap_samples: Number of samples to overlap/crossfade
-
-        Returns:
-            Single stitched audio array
-        """
-        if len(chunks) == 1:
-            return chunks[0]
-
-        # Create crossfade windows
-        fade_in = np.linspace(0, 1, overlap_samples)
-        fade_out = np.linspace(1, 0, overlap_samples)
-
-        # Calculate total length
-        total_length = sum(len(c) for c in chunks) - overlap_samples * (len(chunks) - 1)
-        result = np.zeros(total_length, dtype=np.float32)
-
-        pos = 0
-        for i, chunk in enumerate(chunks):
-            if i == 0:
-                # First chunk: no fade in, fade out at end
-                result[:len(chunk) - overlap_samples] = chunk[:-overlap_samples]
-                result[len(chunk) - overlap_samples:len(chunk)] = chunk[-overlap_samples:] * fade_out
-                pos = len(chunk) - overlap_samples
-            elif i == len(chunks) - 1:
-                # Last chunk: fade in at start, no fade out
-                result[pos:pos + overlap_samples] += chunk[:overlap_samples] * fade_in
-                result[pos + overlap_samples:pos + len(chunk)] = chunk[overlap_samples:]
-            else:
-                # Middle chunks: fade in and fade out
-                result[pos:pos + overlap_samples] += chunk[:overlap_samples] * fade_in
-                result[pos + overlap_samples:pos + len(chunk) - overlap_samples] = chunk[overlap_samples:-overlap_samples]
-                result[pos + len(chunk) - overlap_samples:pos + len(chunk)] = chunk[-overlap_samples:] * fade_out
-                pos += len(chunk) - overlap_samples
-
-        return result
-
     def enhance(self, input_path: Path, output_path: Path, target_sr: int = 48000) -> Path:
         """
         Enhance audio using DeepFilterNet neural network.
@@ -197,17 +156,7 @@ class DeepFilterNetEnhancer:
             print(f"\n🧠 DeepFilterNet Enhancement: {input_path.name}")
 
         # Load audio
-        audio, orig_sr = sf.read(input_path, dtype='float32')
-
-        if self.verbose:
-            duration = len(audio) / orig_sr
-            print(f"  Loaded: {duration:.1f}s at {orig_sr}Hz")
-
-        # Convert to mono if stereo
-        if len(audio.shape) > 1:
-            audio = np.mean(audio, axis=1)
-            if self.verbose:
-                print("  Converted to mono")
+        audio, orig_sr = load_mono_audio(input_path, verbose=self.verbose)
 
         # Store original audio for strength mixing (before processing)
         original_audio = audio.copy()
@@ -277,7 +226,7 @@ class DeepFilterNetEnhancer:
         if len(enhanced_chunks) == 1:
             enhanced = enhanced_chunks[0]
         else:
-            enhanced = self._stitch_chunks(enhanced_chunks, overlap_samples)
+            enhanced = stitch_chunks(enhanced_chunks, overlap_samples)
 
         if self.verbose:
             print("  Neural denoising complete")
@@ -298,16 +247,8 @@ class DeepFilterNetEnhancer:
                 print(f"  Resampling: {self.NATIVE_SR}Hz -> {orig_sr}Hz")
             enhanced = self._resample(enhanced, self.NATIVE_SR, orig_sr)
 
-        # Normalize to prevent clipping
-        max_val = np.max(np.abs(enhanced))
-        if max_val > 0.95:
-            enhanced = enhanced * (0.95 / max_val)
-            if self.verbose:
-                print("  Normalized to prevent clipping")
-
-        # Save output
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        sf.write(output_path, enhanced, orig_sr)
+        enhanced = prevent_clipping(enhanced, verbose=self.verbose)
+        save_audio(enhanced, output_path, orig_sr)
 
         if self.verbose:
             print(f"  ✓ Saved: {output_path}")

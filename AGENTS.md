@@ -34,7 +34,7 @@ This project follows **Kaizen** (continuous improvement) principles:
 - **No regressions** - Quality score must stay >= 75, SNR >= 25dB
 - **Document everything** - Future agents need full context
 
-## Current Status (Last Updated: 2026-02-05)
+## Current Status (Last Updated: 2026-02-06)
 
 ### What Works Now
 - ✅ YouTube audio downloading
@@ -53,9 +53,13 @@ DeepFilter Score: 115.9 (deepfilter) - BEST
 Location: Test files cached in temp/ (when --keep-temp used)
 ```
 
-### Current Audio Pipeline (Phase 2 - ML Enhancement)
+### Current Audio Pipeline
 ```
-YouTube URL → Download → Extract Audio → VAD → ML Spectral Gating → Filters → Normalization → Output
+YouTube URL → Download → Extract Audio
+  → [Pre-processing: Hum Removal, Click Removal]
+  → Enhancement (DeepFilterNet / ML Spectral Gating / Simple)
+  → [Post-processing: Dereverb, Diarization, Isolation, Distance-robust, AGC, De-essing, Comfort Noise]
+  → Loudness Normalization → Output
 ```
 
 ### Current Quality Metrics
@@ -82,26 +86,37 @@ YouTube URL → Download → Extract Audio → VAD → ML Spectral Gating → Fi
 - All quality improvements focus on AUDIO
 - Output format: WAV (lossless) or high-quality MP3
 
-### Directory Structure (MUST NOT CHANGE)
+### Directory Structure
 ```
 audio-restorer/
 ├── AGENTS.md           ← YOU ARE HERE - Read first!
 ├── ITERATION_LOG.md    ← Log of all changes made
 ├── ROADMAP.md          ← Current roadmap and plans
-├── docs/QUALITY_METRICS.md  ← How we measure audio quality
-├── tests/              ← All test files
-│   ├── test_pipeline.py
-│   ├── test_quality.py
-│   └── test_benchmarks.py
+├── docs/               ← Detailed documentation
 ├── run.py              ← Main entry point
-├── config.py           ← Configuration
+├── config.py           ← Configuration (settings, paths)
 ├── src/
-│   ├── downloader.py
-│   ├── audio_enhancer.py ← MAIN FOCUS FOR IMPROVEMENTS
-│   └── pipeline.py
-├── output/             ← Test outputs go here
+│   ├── audio_utils.py      ← Shared I/O: load_mono_audio, save_audio, prevent_clipping
+│   ├── pipeline.py          ← Main orchestrator
+│   ├── downloader.py        ← YouTube downloading
+│   ├── audio_enhancer.py    ← SimpleEnhancer (ffmpeg fallback)
+│   ├── ml_enhancer.py       ← TorchEnhancer, AdvancedMLEnhancer
+│   ├── deepfilter_enhancer.py ← DeepFilterNet neural denoising
+│   ├── dereverb_enhancer.py ← NARA-WPE de-reverberation
+│   ├── diarization.py       ← Speaker diarization
+│   ├── speaker_isolation.py ← Main speaker extraction
+│   ├── distance_enhancer.py ← Distance-robust gain/EQ
+│   ├── speaker_agc.py       ← Per-speaker AGC
+│   ├── deesser.py           ← Sibilance reduction
+│   ├── hum_remover.py       ← 50/60Hz notch filter
+│   ├── click_remover.py     ← Transient artifact removal
+│   ├── comfort_noise.py     ← Pink noise for silence regions
+│   ├── video_merger.py      ← Audio+video merging
+│   └── sota_metrics.py      ← DNSMOS, PESQ, STOI
+├── tests/              ← Test files
+├── output/             ← Processed outputs
 ├── temp/               ← Temporary files
-└── benchmarks/         ← Quality benchmarks and samples
+└── benchmarks/         ← Quality benchmarks
 ```
 
 ## 📝 Project-Specific Rules
@@ -234,9 +249,11 @@ class SimpleEnhancer:
 
 **Implemented Features:**
 1. ✅ ML-based noise suppression (PyTorch spectral gating, DeepFilterNet neural)
-2. ✅ Speaker diarization and isolation (Phase 3 complete)
-3. ✅ Distance-robust enhancement (adaptive gain/EQ)
+2. ✅ Speaker diarization and isolation (Phase 3)
+3. ✅ Distance-robust enhancement, per-speaker AGC (Phase 3)
 4. ✅ De-reverberation (NARA-WPE, optional)
+5. ✅ De-essing, hum removal, click removal, comfort noise (Phase 4)
+6. ✅ Shared audio utilities, pipeline simplification (Cleanup)
 
 **Acknowledged Limitations:**
 1. **Heuristic Diarization:** Uses energy + spectral features, not embedding-based models
@@ -339,35 +356,41 @@ For complete Git workflow, authentication, and commit guidelines, see: `docs/GIT
 
 ## Enhancer Interface Contract
 
-All enhancers must follow this interface (defined in `src/enhancer_base.py`):
+All enhancers must implement an `enhance()` method:
 
 ```python
 from pathlib import Path
-from src.enhancer_base import BaseEnhancer
 
-class MyEnhancer(BaseEnhancer):
-    def __init__(self,
-                 noise_reduction_strength: float = 0.8,
-                 use_gpu: bool = False,
-                 verbose: bool = True):
-        # Initialize enhancer
-        pass
+class MyEnhancer:
+    def __init__(self, verbose: bool = True):
+        self.verbose = verbose
 
     @property
     def name(self) -> str:
         return "MyEnhancer"
 
-    def enhance(self, input_path: Path, output_path: Path) -> Path:
-        # Process audio
-        # Return path to enhanced file
+    def enhance(self, input_path: Path, output_path: Path, target_sr: int = 48000) -> Path:
+        # Process audio file, write to output_path
         return output_path
 ```
+
+Post-processing modules use `process()` instead of `enhance()`:
+```python
+def process(self, input_path: Path, output_path: Path) -> Path:
+    # Process audio, write to output_path
+    return output_path
+```
+
+All modules should use shared utilities from `src/audio_utils.py`:
+- `load_mono_audio(path)` — load audio as mono float32
+- `save_audio(audio, path, sr)` — save with auto mkdir
+- `prevent_clipping(audio)` — normalize peaks to 0.95
 
 ### Adding a New Enhancer
 
 1. Create enhancer class in `src/` directory
-2. Inherit from `BaseEnhancer` or follow the interface
-3. Add to `_create_enhancer()` in `src/pipeline.py`
+2. Implement `enhance()` or `process()` method
+3. Add to `_create_enhancer()` or `_init_module()` in `src/pipeline.py`
 4. Add CLI option in `run.py` argument parser
 5. Test with reference video
 6. Update ITERATION_LOG.md with metrics
@@ -384,11 +407,17 @@ class MyEnhancer(BaseEnhancer):
 
 ### Optional Post-Processing
 
-| Name | File | Description |
+| Flag | File | Description |
 |------|------|-------------|
-| `--dereverb` | dereverb_enhancer.py | NARA-WPE de-reverberation (removes room echo) |
-
-**Note:** De-reverberation is disabled by default. Use `--dereverb` flag for recordings with significant room echo. Best for files < 10 minutes due to CPU-intensive processing.
+| `--dereverb` | dereverb_enhancer.py | NARA-WPE de-reverberation |
+| `--diarize` | diarization.py | Speaker identification |
+| `--isolate-speaker` | speaker_isolation.py | Main speaker extraction |
+| `--distance-robust` | distance_enhancer.py | Adaptive gain/EQ by distance |
+| `--speaker-agc` | speaker_agc.py | Per-speaker volume normalization |
+| `--deess` | deesser.py | Sibilance reduction |
+| `--remove-hum` | hum_remover.py | 50/60Hz notch filter |
+| `--remove-clicks` | click_remover.py | Transient artifact removal |
+| `--comfort-noise` | comfort_noise.py | Pink noise in silence regions |
 
 ## Dependencies Status
 
@@ -444,7 +473,7 @@ class MyEnhancer(BaseEnhancer):
 | 11 | Distance-robust enhancement | **Complete** |
 | 12 | Per-speaker AGC | **Complete** |
 
-### Phase 4: Audio Quality Refinement (In Progress)
+### Phase 4: Audio Quality Refinement (Complete)
 | # | Iteration | Status |
 |---|-----------|--------|
 | 13 | scipy dependency + DeepFilterNet strength | **Complete** |
@@ -453,8 +482,13 @@ class MyEnhancer(BaseEnhancer):
 | 16 | Hum removal (50/60Hz) | **Complete** |
 | 17 | Click/pop removal | **Complete** |
 | 18 | Comfort noise | **Complete** |
-| 19 | Processing chain optimization | Pending |
-| 20 | Quality tracking/DNSMOS target | Pending |
+
+### Cleanup: Code Quality (Complete)
+| # | Iteration | Status |
+|---|-----------|--------|
+| 20 | Critical fixes & dead code removal | **Complete** |
+| 21 | Extract shared utilities (audio_utils.py) | **Complete** |
+| 22 | Pipeline simplification & config cleanup | **Complete** |
 
 ### Available Enhancers (Best to Basic)
 1. `--enhancer deepfilter` - Neural network denoising (best quality)
@@ -478,7 +512,7 @@ class MyEnhancer(BaseEnhancer):
 **Remember:** This is an AUDIO QUALITY project. Video is secondary.
 Every iteration should make conference audio clearer and more intelligible.
 
-**Last updated:** 2026-02-05 (Documentation review)
-**Current Phase:** Phase 4 Complete - Ready for Phase 5 (Iterations 19-20)
+**Last updated:** 2026-02-06 (Cleanup iterations 20-22 complete)
+**Current Phase:** Cleanup complete - Ready for Phase 5
 **Best Quality Score:** 115.9/100 (DeepFilterNet - exceeded all targets)
 **Available Refinements:** De-essing, hum removal, click removal, comfort noise
