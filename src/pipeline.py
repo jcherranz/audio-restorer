@@ -81,7 +81,8 @@ class AudioRestorationPipeline:
             comfort_noise: Add comfort noise to silence regions
             verbose: Print progress messages
         """
-        from config import ENHANCEMENT, DEREVERB
+        from config import ENHANCEMENT, DEREVERB, FFMPEG_PATH
+        self._ffmpeg_path = FFMPEG_PATH
         self._enhancement_config = ENHANCEMENT
         
         self.temp_dir = Path(temp_dir)
@@ -240,16 +241,69 @@ class AudioRestorationPipeline:
                 print(f"⚠ Could not load {label}: {e}")
             return False, None
 
-    def _run_stage(self, name, processor, audio_path, suffix, method="process", **kwargs):
-        """Run an optional processing stage with error handling.
+    def _quick_dnsmos(self, audio_path: Path) -> float:
+        """Fast DNSMOS OVRL score using a single chunk.
+
+        Returns OVRL score (1-5), or 0.0 on failure.
+        """
+        try:
+            from .audio_utils import load_mono_audio
+            from .sota_metrics import SOTAMetricsCalculator
+
+            if not hasattr(self, '_metrics_calc'):
+                self._metrics_calc = SOTAMetricsCalculator()
+
+            audio, sr = load_mono_audio(audio_path, verbose=False)
+
+            # Use only a single 9s chunk from the middle for speed
+            import librosa
+            if sr != 16000:
+                audio = librosa.resample(audio, orig_sr=sr, target_sr=16000)
+                sr = 16000
+
+            chunk_size = 144160  # DNSMOS model input size
+            if len(audio) > chunk_size:
+                mid = len(audio) // 2 - chunk_size // 2
+                audio = audio[mid:mid + chunk_size]
+
+            result = self._metrics_calc.calculate_dnsmos(audio, sr)
+            return result.get('ovrl', 0.0)
+        except Exception:
+            return 0.0
+
+    def _run_stage(self, name, processor, audio_path, suffix, method="process",
+                   quality_check=True, **kwargs):
+        """Run an optional processing stage with error handling and quality check.
 
         Writes to a temp file, then replaces the input on success.
+        If quality_check is True, measures DNSMOS before/after and skips
+        the stage if OVRL decreases.
+
         Returns True if the stage succeeded, False otherwise.
         """
         try:
             print("\n" + "=" * 60)
             stage_output = self.output_dir / f"{audio_path.stem}{suffix}.wav"
+
+            # Measure quality before
+            ovrl_before = 0.0
+            if quality_check:
+                ovrl_before = self._quick_dnsmos(audio_path)
+
             getattr(processor, method)(audio_path, stage_output, **kwargs)
+
+            # Measure quality after and compare
+            if quality_check and ovrl_before > 0:
+                ovrl_after = self._quick_dnsmos(stage_output)
+                if ovrl_after > 0 and ovrl_after < ovrl_before - 0.05:
+                    if self.verbose:
+                        print(f"  ⚠ {name} degraded quality "
+                              f"(OVRL {ovrl_before:.2f} → {ovrl_after:.2f}), skipping")
+                    stage_output.unlink(missing_ok=True)
+                    return False
+                elif self.verbose and ovrl_after > 0:
+                    print(f"  Quality check: OVRL {ovrl_before:.2f} → {ovrl_after:.2f} ✓")
+
             shutil.move(str(stage_output), str(audio_path))
             return True
         except Exception as e:
@@ -260,59 +314,166 @@ class AudioRestorationPipeline:
 
     def _normalize_loudness(self, audio_path: Path, target_lufs: float = -16.0) -> None:
         """
-        Apply EBU R128 loudness normalization.
+        Apply EBU R128 loudness normalization using two-pass loudnorm.
 
-        Uses ffmpeg's loudnorm filter to normalize audio to a target loudness level.
-        This ensures consistent playback volume across different audio files.
+        Two-pass is ffmpeg's recommended approach for accurate loudness:
+        - Pass 1: Measure actual loudness statistics (I, TP, LRA, thresh)
+        - Pass 2: Apply correction using measured values for precise targeting
+
+        Single-pass loudnorm is known to be inaccurate (e.g. -41 LUFS vs -16 target).
 
         Args:
             audio_path: Path to audio file (modified in-place)
             target_lufs: Target integrated loudness in LUFS (default: -16, podcast standard)
         """
         import subprocess
+        import json
 
         if self.verbose:
-            print(f"\n🔊 Normalizing loudness to {target_lufs} LUFS...")
+            print(f"\n🔊 Normalizing loudness to {target_lufs} LUFS (two-pass)...")
 
-        # Create temp file for normalized output
         temp_output = audio_path.parent / f"{audio_path.stem}_normalized.wav"
 
         try:
-            # Run ffmpeg loudnorm filter
-            # I=-16: Target integrated loudness
-            # TP=-1.5: Target true peak (prevent clipping)
-            # LRA=11: Target loudness range (natural dynamics)
-            cmd = [
-                'ffmpeg', '-y',
+            # Pass 1: Measure loudness statistics
+            measure_cmd = [
+                self._ffmpeg_path, '-y',
                 '-i', str(audio_path),
-                '-af', f'loudnorm=I={target_lufs}:TP=-1.5:LRA=11',
-                '-ar', '48000',  # Keep 48kHz sample rate
-                str(temp_output)
+                '-af', f'loudnorm=I={target_lufs}:TP=-1.5:LRA=11:print_format=json',
+                '-f', 'null', '-'
             ]
 
-            result = subprocess.run(
-                cmd,
+            measure_result = subprocess.run(
+                measure_cmd,
                 capture_output=True,
                 text=True
             )
 
-            if result.returncode != 0:
+            if measure_result.returncode != 0:
                 if self.verbose:
-                    print(f"  ⚠ Loudness normalization warning: {result.stderr}")
+                    print(f"  ⚠ Loudness measurement failed: {measure_result.stderr[-200:]}")
+                return
+
+            # Parse loudnorm JSON from stderr (ffmpeg outputs filter info to stderr)
+            stderr = measure_result.stderr
+            json_start = stderr.rfind('{')
+            json_end = stderr.rfind('}')
+
+            if json_start == -1 or json_end == -1:
+                if self.verbose:
+                    print("  ⚠ Could not parse loudness measurement output")
+                return
+
+            stats = json.loads(stderr[json_start:json_end + 1])
+
+            measured_i = stats["input_i"]
+            measured_tp = stats["input_tp"]
+            measured_lra = stats["input_lra"]
+            measured_thresh = stats["input_thresh"]
+
+            if self.verbose:
+                print(f"  Measured: I={measured_i} LUFS, TP={measured_tp} dBTP, "
+                      f"LRA={measured_lra}, Thresh={measured_thresh}")
+
+            # Pass 2: Apply normalization with measured values
+            apply_cmd = [
+                self._ffmpeg_path, '-y',
+                '-i', str(audio_path),
+                '-af', (
+                    f'loudnorm=I={target_lufs}:TP=-1.5:LRA=11'
+                    f':measured_I={measured_i}'
+                    f':measured_TP={measured_tp}'
+                    f':measured_LRA={measured_lra}'
+                    f':measured_thresh={measured_thresh}'
+                    f':linear=true'
+                ),
+                '-ar', '48000',
+                str(temp_output)
+            ]
+
+            apply_result = subprocess.run(
+                apply_cmd,
+                capture_output=True,
+                text=True
+            )
+
+            if apply_result.returncode != 0:
+                if self.verbose:
+                    print(f"  ⚠ Loudness normalization failed: {apply_result.stderr[-200:]}")
                 return
 
             # Replace original with normalized version
             shutil.move(str(temp_output), str(audio_path))
 
             if self.verbose:
-                print(f"  ✓ Loudness normalized to {target_lufs} LUFS")
+                print(f"  ✓ Loudness normalized to {target_lufs} LUFS (two-pass)")
 
         except Exception as e:
             if self.verbose:
                 print(f"  ⚠ Loudness normalization failed: {e}")
-            # Clean up temp file if it exists
             if temp_output.exists():
                 temp_output.unlink()
+
+    def _generate_quality_report(self, audio_path: Path) -> dict:
+        """Run DNSMOS on output and save a quality report JSON.
+
+        Returns a dict with scores and grade, or empty dict on failure.
+        """
+        import json as _json
+        try:
+            from .audio_utils import load_mono_audio
+            from .sota_metrics import SOTAMetricsCalculator
+
+            if not hasattr(self, '_metrics_calc'):
+                self._metrics_calc = SOTAMetricsCalculator()
+
+            if self.verbose:
+                print("\n📊 Generating quality report...")
+
+            audio, sr = load_mono_audio(audio_path, verbose=False)
+            dnsmos = self._metrics_calc.calculate_dnsmos(audio, sr)
+
+            if not dnsmos:
+                return {}
+
+            ovrl = dnsmos.get('ovrl', 0)
+            sig = dnsmos.get('sig', 0)
+            bak = dnsmos.get('bak', 0)
+
+            # Grade based on OVRL
+            if ovrl >= 4.0:
+                grade = "Excellent"
+            elif ovrl >= 3.0:
+                grade = "Good"
+            elif ovrl >= 2.0:
+                grade = "Fair"
+            else:
+                grade = "Poor"
+
+            report = {
+                "file": str(audio_path),
+                "dnsmos_ovrl": round(ovrl, 2),
+                "dnsmos_sig": round(sig, 2),
+                "dnsmos_bak": round(bak, 2),
+                "grade": grade,
+                "timestamp": datetime.now().isoformat(),
+            }
+
+            # Save JSON report alongside the WAV
+            report_path = audio_path.with_suffix('.quality.json')
+            with open(report_path, 'w') as f:
+                _json.dump(report, f, indent=2)
+
+            if self.verbose:
+                print(f"  DNSMOS: OVRL={ovrl:.2f}, SIG={sig:.2f}, BAK={bak:.2f}")
+                print(f"  Grade: {grade}")
+
+            return report
+
+        except Exception as e:
+            if self.verbose:
+                print(f"  ⚠ Quality report failed: {e}")
+            return {}
 
     def restore(self,
                 url: str,
@@ -415,12 +576,8 @@ class AudioRestorationPipeline:
                 self._run_stage("De-reverberation", self.dereverb_enhancer,
                                 enhanced_audio_path, "_dereverb", method="enhance")
 
-            # Apply loudness normalization (EBU R128)
-            target_lufs = self._enhancement_config.get("target_loudness", -16)
-            self._normalize_loudness(enhanced_audio_path, target_lufs=target_lufs)
-
             result.enhanced_audio = enhanced_audio_path
-            
+
             # Step 3: Merge (if video was downloaded)
             if not audio_only and video_path:
                 print("\n" + "=" * 60)
@@ -508,18 +665,42 @@ class AudioRestorationPipeline:
                 self._run_stage("Comfort noise", self.comfort_noise_generator,
                                 enhanced_audio_path, "_comfort")
 
+            # Step 11: Loudness normalization (EBU R128, always last)
+            target_lufs = self._enhancement_config.get("target_loudness", -16)
+            self._normalize_loudness(enhanced_audio_path, target_lufs=target_lufs)
+
+            # Step 12: Quality report
+            quality_report = self._generate_quality_report(enhanced_audio_path)
+
             # Success!
             result.success = True
             result.processing_time = time.time() - start_time
-            
+
+            if not self.keep_temp_files and result.original_audio.exists():
+                try:
+                    preserved_audio = self.output_dir / result.original_audio.name
+                    if result.original_audio.resolve() != preserved_audio.resolve():
+                        shutil.copy2(result.original_audio, preserved_audio)
+                        result.original_audio = preserved_audio
+                except Exception as e:
+                    if self.verbose:
+                        print(f"\n⚠ Failed to preserve original audio: {e}")
+
             print("\n" + "=" * 60)
             print("✅ RESTORATION COMPLETE!")
             print("=" * 60)
             print(f"⏱️  Processing time: {result.processing_time:.1f} seconds")
+            if quality_report:
+                grade = quality_report.get("grade", "N/A")
+                ovrl = quality_report.get("dnsmos_ovrl", 0)
+                print(f"📊 Quality: {grade} (DNSMOS OVRL: {ovrl:.2f}/5)")
             print(f"\n📁 Output files:")
             if result.enhanced_video.exists():
                 print(f"   Video: {result.enhanced_video}")
             print(f"   Audio: {result.enhanced_audio}")
+            if quality_report:
+                report_path = enhanced_audio_path.with_suffix('.quality.json')
+                print(f"   Quality report: {report_path}")
             if result.comparison_video:
                 print(f"   Comparison: {result.comparison_video}")
             if self.diarize_enabled:

@@ -146,6 +146,9 @@ class ComfortNoiseGenerator:
         frame_samples = int(frame_ms / 1000 * sr)
         hop_samples = frame_samples // 2
 
+        if len(audio) < frame_samples:
+            return []
+
         # Calculate RMS for each frame
         num_frames = (len(audio) - frame_samples) // hop_samples + 1
         frame_db = np.zeros(num_frames)

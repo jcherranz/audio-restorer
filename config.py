@@ -38,8 +38,9 @@ _GPU_AVAILABLE = _detect_gpu()
 
 ENHANCEMENT = {
     # Noise reduction strength (0.0 to 1.0)
-    # Higher = more aggressive noise removal, but might affect speech quality
-    "noise_reduction_strength": 0.8,
+    # 1.0 = fully enhanced (best DNSMOS scores across SIG, BAK, and OVRL)
+    # Lower values mix original audio back in, which degrades all metrics
+    "noise_reduction_strength": 1.0,
 
     # Enhancer type to use:
     # - "simple": ffmpeg-based (fastest, basic quality)
@@ -102,6 +103,49 @@ VIDEO_SETTINGS = {
 YOUTUBE_SETTINGS = {
     "format": "bestvideo[height<=1080]+bestaudio/best",
     "merge_output_format": "mp4",
+}
+
+# Presets — curated flag combinations for common scenarios
+PRESETS = {
+    "lecture": {
+        "description": "Single speaker, mild processing, fast",
+        "enhancer_type": "deepfilter" if _GPU_AVAILABLE else "torch_advanced",
+        "dereverb": False,
+        "diarize": False,
+        "isolate_speaker": False,
+        "distance_robust": False,
+        "speaker_agc": False,
+        "deess": True,
+        "remove_hum": False,
+        "remove_clicks": False,
+        "comfort_noise": False,
+    },
+    "panel": {
+        "description": "Multi-speaker, diarization + AGC + distance-robust",
+        "enhancer_type": "deepfilter" if _GPU_AVAILABLE else "torch_advanced",
+        "dereverb": False,
+        "diarize": True,
+        "isolate_speaker": False,
+        "distance_robust": True,
+        "speaker_agc": True,
+        "deess": True,
+        "remove_hum": False,
+        "remove_clicks": False,
+        "comfort_noise": False,
+    },
+    "noisy": {
+        "description": "Aggressive denoising + all cleanup",
+        "enhancer_type": "deepfilter" if _GPU_AVAILABLE else "torch_advanced",
+        "dereverb": True,
+        "diarize": False,
+        "isolate_speaker": False,
+        "distance_robust": False,
+        "speaker_agc": False,
+        "deess": True,
+        "remove_hum": True,
+        "remove_clicks": True,
+        "comfort_noise": True,
+    },
 }
 
 # Logging

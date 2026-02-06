@@ -138,7 +138,7 @@ def test_configurable_noise_reduction():
                     sys.executable, "run.py",
                     REFERENCE_VIDEO,
                     "--audio-only",
-                    "--quick",
+                    "--enhancer", "torch",
                     "--noise-reduction", str(level),
                     "-o", f"test_nr_{level}"
                 ],
@@ -199,7 +199,7 @@ def cleanup():
     print(f"✓ Removed {removed} test files")
 
 
-def run_all_tests():
+def run_all_tests(keep_temp: bool = False):
     """Run all tests"""
     print("\n" + "=" * 60)
     print("PIPELINE TEST SUITE")
@@ -217,7 +217,8 @@ def run_all_tests():
         "file_formats": test_file_formats(),
     }
     
-    cleanup()
+    if not keep_temp:
+        cleanup()
     
     # Print summary
     print("\n" + "=" * 60)
@@ -252,5 +253,5 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    exit_code = run_all_tests()
+    exit_code = run_all_tests(keep_temp=args.keep_temp)
     sys.exit(exit_code)

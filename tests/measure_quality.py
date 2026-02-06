@@ -256,7 +256,7 @@ def calculate_overall_score(metrics: QualityMetrics) -> float:
     
     # Noise level (20% weight) - target -50 dB, bad at -30 dB
     noise_range = -30 - (-50)  # 20 dB range
-    noise_score = max(0, (-30 - metrics.noise_level_db) / noise_range) * 20
+    noise_score = min(max(0, (-30 - metrics.noise_level_db) / noise_range), 1.0) * 20
     score += noise_score
     
     # Dynamic range (15% weight) - optimal 20 dB

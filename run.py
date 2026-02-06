@@ -27,7 +27,7 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from config import TEMP_DIR, OUTPUT_DIR, ENHANCEMENT
+from config import TEMP_DIR, OUTPUT_DIR, ENHANCEMENT, PRESETS
 from src.pipeline import AudioRestorationPipeline
 
 
@@ -173,6 +173,18 @@ Examples:
         help="Add comfort noise to silence regions (prevents dead air)"
     )
 
+    preset_names = list(PRESETS.keys())
+    preset_help = "Use a curated preset: " + ", ".join(
+        f"{k} ({v['description']})" for k, v in PRESETS.items()
+    )
+    parser.add_argument(
+        "--preset",
+        type=str,
+        choices=preset_names,
+        default=None,
+        help=preset_help
+    )
+
     return parser
 
 
@@ -198,14 +210,29 @@ def main():
 ╚══════════════════════════════════════════════════════════════╝
     """)
     
+    # Apply preset defaults (individual flags override preset)
+    preset_flags = {}
+    if args.preset:
+        preset_flags = PRESETS[args.preset].copy()
+        preset_flags.pop("description", None)
+        if not args.quiet:
+            print(f"  Using preset: {args.preset} ({PRESETS[args.preset]['description']})")
+
     # Determine enhancer type
     if args.enhancer:
         enhancer_type = args.enhancer
     elif args.quick:
         enhancer_type = "simple"
+    elif "enhancer_type" in preset_flags:
+        enhancer_type = preset_flags.pop("enhancer_type")
     else:
         enhancer_type = ENHANCEMENT.get("enhancer_type", "torch_advanced")
-    
+
+    # Merge preset flags with CLI flags (CLI wins)
+    def flag_or_preset(flag_name):
+        cli_val = getattr(args, flag_name, False)
+        return cli_val or preset_flags.get(flag_name, False)
+
     # Initialize pipeline
     pipeline = AudioRestorationPipeline(
         temp_dir=TEMP_DIR,
@@ -214,15 +241,15 @@ def main():
         noise_reduction_strength=args.noise_reduction,
         fallback_to_simple=ENHANCEMENT.get("fallback_to_simple", True),
         keep_temp_files=args.keep_temp,
-        dereverb=args.dereverb,
-        diarize=args.diarize,
-        isolate_speaker=args.isolate_speaker,
-        distance_robust=args.distance_robust,
-        speaker_agc=args.speaker_agc,
-        deess=args.deess,
-        remove_hum=args.remove_hum,
-        remove_clicks=args.remove_clicks,
-        comfort_noise=args.comfort_noise,
+        dereverb=flag_or_preset("dereverb"),
+        diarize=flag_or_preset("diarize"),
+        isolate_speaker=flag_or_preset("isolate_speaker"),
+        distance_robust=flag_or_preset("distance_robust"),
+        speaker_agc=flag_or_preset("speaker_agc"),
+        deess=flag_or_preset("deess"),
+        remove_hum=flag_or_preset("remove_hum"),
+        remove_clicks=flag_or_preset("remove_clicks"),
+        comfort_noise=flag_or_preset("comfort_noise"),
         verbose=not args.quiet
     )
     

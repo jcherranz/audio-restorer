@@ -15,7 +15,15 @@
       "Bash(/home/jcherranz/audio-restorer/ffmpeg -i output/test_deepfilter_chunked_enhanced.wav -af loudnorm=print_format=summary -f null -)",
       "WebFetch(domain:github.com)",
       "Bash(pip show:*)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git remote:*)",
+      "Bash(find:*)",
+      "Bash(git -C /home/jcherranz/audio-restorer log --oneline -20)",
+      "Bash(pkill:*)",
+      "Bash(gh auth:*)"
     ]
   }
 }

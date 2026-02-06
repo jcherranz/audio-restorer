@@ -122,6 +122,39 @@ class DeepFilterNetEnhancer:
     def name(self) -> str:
         return "DeepFilterNet"
 
+    def estimate_input_snr(self, audio: np.ndarray, sr: int) -> float:
+        """
+        Estimate input SNR from silent segments.
+
+        Identifies the quietest 10% of frames as noise floor, and the
+        loudest 30% as signal. Returns estimated SNR in dB.
+
+        Args:
+            audio: Mono audio as numpy array
+            sr: Sample rate
+
+        Returns:
+            Estimated SNR in dB
+        """
+        frame_len = int(0.025 * sr)  # 25ms frames
+        hop = frame_len // 2
+        n_frames = max(1, (len(audio) - frame_len) // hop)
+
+        energies = np.array([
+            np.mean(audio[i * hop:i * hop + frame_len] ** 2)
+            for i in range(n_frames)
+        ])
+
+        if len(energies) == 0:
+            return 0.0
+
+        noise_energy = np.percentile(energies, 10)
+        signal_energy = np.percentile(energies, 90)
+
+        if noise_energy <= 0:
+            return 60.0  # Very clean
+        return 10 * np.log10(signal_energy / noise_energy)
+
     def _resample(self, audio: np.ndarray, orig_sr: int, target_sr: int) -> np.ndarray:
         """Resample audio using librosa."""
         if orig_sr == target_sr:
@@ -157,6 +190,11 @@ class DeepFilterNetEnhancer:
 
         # Load audio
         audio, orig_sr = load_mono_audio(input_path, verbose=self.verbose)
+
+        # Estimate input SNR for logging
+        if self.verbose:
+            input_snr = self.estimate_input_snr(audio, orig_sr)
+            print(f"  Input SNR estimate: {input_snr:.1f} dB")
 
         # Store original audio for strength mixing (before processing)
         original_audio = audio.copy()
@@ -196,14 +234,10 @@ class DeepFilterNetEnhancer:
                 progress = (i + 1) / num_chunks * 100
                 print(f"  Chunk {i+1}/{num_chunks} ({progress:.0f}%)...", end='\r')
 
-            # Convert to torch tensor
+            # Convert to torch tensor (keep on CPU — df_enhance handles device)
             chunk_tensor = torch.from_numpy(chunk).float().unsqueeze(0)
 
-            # Move to GPU if available and requested
-            if self.use_gpu and torch.cuda.is_available():
-                chunk_tensor = chunk_tensor.cuda()
-
-            # Apply DeepFilterNet
+            # Apply DeepFilterNet (internally moves to GPU if available)
             with torch.no_grad():
                 enhanced_chunk = self._df_enhance(
                     self.model,
@@ -211,13 +245,9 @@ class DeepFilterNetEnhancer:
                     chunk_tensor
                 )
 
-            # Move back to CPU and convert to numpy
+            # Convert to numpy
             enhanced_chunk = enhanced_chunk.squeeze().cpu().numpy()
             enhanced_chunks.append(enhanced_chunk)
-
-            # Clear GPU cache
-            if self.use_gpu and torch.cuda.is_available():
-                torch.cuda.empty_cache()
 
         if self.verbose and num_chunks > 1:
             print()  # New line after progress

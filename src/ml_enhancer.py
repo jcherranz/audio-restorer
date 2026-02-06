@@ -406,6 +406,8 @@ class AdvancedMLEnhancer(TorchEnhancer):
         
         # Calculate expected number of frames (same as STFT)
         n_frames = 1 + (audio_len - frame_length) // hop_length
+        if n_frames <= 0:
+            return torch.zeros(0, dtype=torch.bool, device=audio.device)
         
         # Compute frame energies using torch
         audio_np = audio.squeeze().cpu().numpy()
