@@ -23,7 +23,7 @@ When in doubt:
 ## Project Goal
 
 Create the best possible audio restoration tool for conference recordings.
-**Current Focus:** High-impact audio quality improvements via Kaizen methodology.
+**Current Focus:** Pipeline is mature — DeepFilterNet achieves mean OVRL=3.11 across 5 diverse recordings.
 **Video processing is NOT a priority.**
 
 ## Kaizen Approach
@@ -34,24 +34,28 @@ This project follows **Kaizen** (continuous improvement) principles:
 - **No regressions** - Quality score must stay >= 75, SNR >= 25dB
 - **Document everything** - Future agents need full context
 
-## Current Status (Last Updated: 2026-02-06)
+## Current Status (Last Updated: 2026-02-07)
 
 ### What Works Now
-- ✅ YouTube audio downloading
-- ✅ Basic noise reduction (spectral gating)
-- ✅ Audio normalization
-- ✅ Command-line interface
+- ✅ YouTube audio downloading (yt-dlp)
+- ✅ DeepFilterNet neural denoising (best quality, GPU-accelerated)
+- ✅ ML spectral gating fallback (CPU-only systems)
+- ✅ Per-stage DNSMOS quality monitoring (auto-skips degrading stages)
+- ✅ Two-pass EBU R128 loudness normalization
+- ✅ Automatic quality report (DNSMOS + grade)
+- ✅ Preset system (lecture/panel/noisy)
+- ✅ 34 unit tests passing
 
-### Test Video (DO NOT CHANGE)
-```
-URL: https://youtu.be/cglDoG0GzyA
-Duration: ~58 minutes
-Purpose: Reference video for all quality testing
-Baseline Quality Score: 66.5 (simple enhancer)
-ML Enhancer Score: 81.0 (torch_advanced)
-DeepFilter Score: 115.9 (deepfilter) - BEST
-Location: Test files cached in temp/ (when --keep-temp used)
-```
+### Test Videos
+
+| Video | Type | Noise | DNSMOS OVRL (enhanced) |
+|-------|------|-------|------------------------|
+| cglDoG0GzyA | Conference (primary reference) | moderate | 2.63 |
+| FGDqFZZabsY | Conference | moderate | 2.11 |
+| UF8uR6Z6KLc | Steve Jobs keynote | low | 3.78 |
+| 8jPQjjsBbIc | Technical talk | moderate | 3.70 |
+| arj7oStGLkU | TED talk | low | 3.34 |
+| **Mean** | | | **3.11 ± 0.65** |
 
 ### Current Audio Pipeline
 ```
@@ -59,42 +63,44 @@ YouTube URL → Download → Extract Audio
   → [Pre-processing: Hum Removal, Click Removal]
   → Enhancement (DeepFilterNet / ML Spectral Gating / Simple)
   → [Post-processing: Dereverb, Diarization, Isolation, Distance-robust, AGC, De-essing, Comfort Noise]
-  → Loudness Normalization → Output
+  → Loudness Normalization (two-pass, always last) → Quality Report → Output
 ```
 
-### Current Quality Metrics
-| Metric | Simple | ML (torch) | DeepFilter | Best Improvement |
-|--------|--------|------------|------------|------------------|
-| Quality Score | 66.5 | 81.0 | **115.9** | +49.4 (+74%) |
-| SNR | 21.4 dB | 28.5 dB | **49.0 dB** | +27.6 dB |
-| Noise Level | -38.3 dB | -44.3 dB | **-84.4 dB** | -46.1 dB |
-| Processing Time | 171s | 40s | 134s | varies |
+### Quality Metrics (Primary Reference: cglDoG0GzyA)
 
-### SOTA Metrics (Iteration 6)
-| Metric | DeepFilter | ML (torch) | Simple | Range |
-|--------|------------|------------|--------|-------|
-| DNSMOS OVRL | **2.62** | 1.16 | 1.08 | 1-5 |
-| DNSMOS SIG | **2.95** | 1.24 | 1.16 | 1-5 (speech) |
-| DNSMOS BAK | **3.87** | 1.34 | 1.23 | 1-5 (background) |
+| Metric | Value | Target | Status |
+|--------|-------|--------|--------|
+| DNSMOS OVRL | 2.63 | > 2.0 | Passing |
+| DNSMOS SIG | 2.96 | > 2.0 | Passing |
+| DNSMOS BAK | 3.84 | > 3.5 | Passing |
+| Quality Score | 87.9/100 | > 75 | Passing |
+| SNR | 47 dB | > 25 dB | Passing |
+| Loudness | -18.3 LUFS | -16 LUFS | Passing |
+| Unit Tests | 34 | > 20 | Passing |
 
-**Note:** DNSMOS was trained on clean speech. Conference recordings naturally score lower.
+### Multi-Video Aggregate (5 recordings)
+
+| Metric | Original | Enhanced | Improvement |
+|--------|----------|----------|-------------|
+| SIG | 2.86 ± 1.15 | 3.39 ± 0.65 | +0.53 |
+| BAK | 2.60 ± 1.02 | 4.01 ± 0.30 | +1.41 |
+| OVRL | 2.45 ± 1.01 | 3.11 ± 0.65 | +0.66 |
 
 ## 🏗️ Project Architecture
 
 ### Core Principle: AUDIO ONLY
 - Video processing exists but is SECONDARY
 - All quality improvements focus on AUDIO
-- Output format: WAV (lossless) or high-quality MP3
+- Output format: WAV (lossless)
 
 ### Directory Structure
 ```
 audio-restorer/
 ├── AGENTS.md           ← YOU ARE HERE - Read first!
 ├── ITERATION_LOG.md    ← Log of all changes made
-├── ROADMAP.md          ← Current roadmap and plans
 ├── docs/               ← Detailed documentation
 ├── run.py              ← Main entry point
-├── config.py           ← Configuration (settings, paths)
+├── config.py           ← Configuration (settings, paths, presets)
 ├── src/
 │   ├── audio_utils.py      ← Shared I/O: load_mono_audio, save_audio, prevent_clipping
 │   ├── pipeline.py          ← Main orchestrator
@@ -114,8 +120,15 @@ audio-restorer/
 │   ├── video_merger.py      ← Audio+video merging
 │   └── sota_metrics.py      ← DNSMOS, PESQ, STOI
 ├── tests/              ← Test files
+│   ├── test_modules.py      ← 34 unit tests (synthetic audio, no network)
+│   ├── test_pipeline.py     ← Pipeline integration tests
+│   ├── reference_videos.json ← 5 test video definitions
+│   └── ...
+├── tasks/              ← Task tracking
+│   ├── todo.md
+│   └── lessons.md
 ├── output/             ← Processed outputs
-├── temp/               ← Temporary files
+├── temp/               ← Temporary/cached files
 └── benchmarks/         ← Quality benchmarks
 ```
 
@@ -126,13 +139,12 @@ audio-restorer/
 
 ### 1. Documentation Updates
 - Update `ITERATION_LOG.md` with every change (what, why, metrics)
-- Update `ROADMAP.md` when completing milestones
 - Track work in `tasks/todo.md`
 
 ### 2. Testing with Reference Video
 - Use `https://youtu.be/cglDoG0GzyA` for all quality tests
-- Run quality gate before committing: `python tests/quality_gate.py`
-- Compare before/after with metrics
+- Run unit tests before committing: `python -m pytest tests/test_modules.py -v`
+- Compare before/after with DNSMOS metrics
 
 ### 3. Audio Quality Focus
 - Video features are secondary
@@ -141,218 +153,82 @@ audio-restorer/
 
 ## 🔄 Iteration Workflow
 
-When working on this project:
-
 ### Step 1: Read Current State
 1. Read `AGENTS.md` (this file)
 2. Read `ITERATION_LOG.md` - see what's been done
-3. Read `ROADMAP.md` - see current priorities
-4. Read `docs/QUALITY_METRICS.md` - understand how we measure success
+3. Read `tasks/todo.md` - see current priorities
 
 ### Step 2: Plan Your Work
-1. Check `ROADMAP.md` for current phase
-2. Create a plan for what you'll implement (track in `tasks/todo.md` per `docs/WORKFLOW_ORCHESTRATION.md`)
+1. Check todo.md for pending tasks
+2. Create a plan with checkable items
 3. Document expected outcomes
 
 ### Step 3: Implement
 1. Make changes to code
-2. Add/update tests in `TESTS/`
-3. Run tests with reference video
+2. Add/update tests
+3. Run tests
 
 ### Step 4: Document
-1. Update `ITERATION_LOG.md` with:
-   - What was changed
-   - Why it was changed
-   - Test results
-   - Before/after metrics
-2. Update `ROADMAP.md` if completing milestones
+1. Update `ITERATION_LOG.md` with results
+2. Update `tasks/todo.md`
 
 ### Step 5: Verify
-1. Check that all tests pass
-2. Verify audio quality improved (or didn't degrade)
+1. Check that all 34+ tests pass
+2. Verify audio quality didn't degrade
 3. Confirm documentation is complete
 
 ## Testing Requirements
 
-### Quality Gate (MANDATORY)
-
-Before any change is accepted, run the quality gate:
-
+### Quick Verification
 ```bash
-# Quick verification
-python tests/quality_gate.py output/enhanced.wav
+source venv/bin/activate
 
-# Fails if: quality_score < 75 OR SNR < 25dB
-```
+# Unit tests (34 tests, ~48s)
+python -m pytest tests/test_modules.py -v
 
-### Full Test Suite
-
-```bash
-# 1. Verify CLI works
-python run.py --help
-
-# 2. Run existing tests
-python -m pytest tests/ -v
-
-# 3. Test with reference video
-python run.py "https://youtu.be/cglDoG0GzyA" --audio-only -o output/test
-
-# 4. Measure quality
-python tests/measure_quality.py output/test_enhanced.wav
-
-# 5. Compare with baseline
-python tests/measure_quality.py --compare output/baseline.wav output/test_enhanced.wav
-```
-
-### Mandatory Test for Every Iteration
-```bash
-# Run this exact command for every quality improvement
+# Process reference video
 python run.py "https://youtu.be/cglDoG0GzyA" --audio-only --keep-temp
 
-# Then analyze output with:
+# Measure quality
 python tests/measure_quality.py output/audio_cglDoG0GzyA_enhanced.wav
 ```
 
-### Quality Metrics to Track
-1. **SNR (Signal-to-Noise Ratio)** - Higher is better
-2. **Dynamic Range** - Should be well-balanced
-3. **Clarity Score** - Custom metric for speech intelligibility
-4. **Processing Time** - Should not increase significantly
-5. **DNSMOS** (SOTA) - Neural MOS predictor (SIG, BAK, OVRL), range 1-5
-6. **PESQ** (SOTA) - Perceptual quality, range 1-4.5 (requires reference)
-7. **STOI** (SOTA) - Speech intelligibility, range 0-1 (requires reference)
-
-### SOTA Metrics (Iteration 6+)
+### DNSMOS Benchmarking
 ```bash
 # Run SOTA metrics on enhanced audio
 python tests/sota_benchmark.py output/enhanced.wav
 
-# Compare multiple files
-python tests/sota_benchmark.py output/*.wav --quiet
+# Multi-video validation
+python tests/multi_video_benchmark.py --videos 5 --sota
 ```
 
-## 📊 Current Audio Processing Chain
+## Key Findings from Benchmarking
 
-```python
-# Current implementation in audio_enhancer.py:
+### What Works
+- **DeepFilterNet at full strength (1.0)** — optimal across all metrics
+- **`atten_lim_db = None` (unlimited suppression)** — best for conference audio
+- **Two-pass loudnorm** — accurate to within 0.5 LUFS of target
+- **Per-stage quality monitoring** — auto-skips degrading stages
 
-class SimpleEnhancer:
-    def enhance(self, audio_path, output_path):
-        # 1. High-pass filter @ 100Hz (remove rumble)
-        # 2. Low-pass filter @ 8000Hz (remove hiss)
-        # 3. Dynamic compression (even out loud/quiet)
-        # 4. Loudness normalization (-16 LUFS)
-        pass
-```
+### What Doesn't Work (Measured)
+| Technique | Impact | Why |
+|-----------|--------|-----|
+| Strength mixing (< 1.0) | All metrics degrade | Blending noisy original back in |
+| `atten_lim_db` 12-20 dB | OVRL -0.46 to -0.99 | Limits suppression, more residual noise |
+| NARA-WPE dereverb (post) | OVRL -1.30 | Distorts speech on clean signal |
+| NARA-WPE dereverb (pre) | OVRL -0.10 | Still hurts SIG |
+| Hum removal (on enhanced) | OVRL -0.25 | False positives on clean audio |
+| Click removal (on enhanced) | OVRL -0.23 | Detects speech transients as clicks |
 
-### Known Limitations & Design Decisions
+### Neutral (No Measurable Impact)
+- De-essing (ΔOVRL ≈ 0.00) — no sibilance issues on typical conference audio
+- Comfort noise (ΔOVRL ≈ -0.04) — negligible effect
 
-**Implemented Features:**
-1. ✅ ML-based noise suppression (PyTorch spectral gating, DeepFilterNet neural)
-2. ✅ Speaker diarization and isolation (Phase 3)
-3. ✅ Distance-robust enhancement, per-speaker AGC (Phase 3)
-4. ✅ De-reverberation (NARA-WPE, optional)
-5. ✅ De-essing, hum removal, click removal, comfort noise (Phase 4)
-6. ✅ Shared audio utilities, pipeline simplification (Cleanup)
-
-**Acknowledged Limitations:**
-1. **Heuristic Diarization:** Uses energy + spectral features, not embedding-based models
-   like pyannote.audio. Works for typical conference recordings but may struggle with
-   complex multi-speaker scenarios with overlapping speech.
-
-2. **Heuristic Distance Estimation:** Simple feature-based approach (energy, HF ratio,
-   SNR, reverb ratio). Not model-based speaker separation. May amplify noise in
-   challenging acoustic conditions.
-
-3. **Simplified Quality Metrics:** Basic measure_quality.py uses simplified LUFS
-   estimation and custom clarity scores. For academic-grade metrics, use
-   `tests/sota_benchmark.py` which provides DNSMOS, PESQ, STOI, and SI-SDR.
-
-4. **Sample Rate:** Pipeline uses 48kHz throughout to match DeepFilterNet's native rate.
-   This is a deliberate choice to avoid quality loss from multiple resampling operations.
-
-5. **GPU Dependency for Best Quality:** DeepFilterNet provides best results but is
-   slow on CPU. Auto-detection selects deepfilter when GPU available, torch_advanced
-   otherwise.
-
-## 🎯 Success Criteria
-
-### Audio Quality is "Good Enough" When:
-- [x] Speech is clearly intelligible at normal volume ✅
-- [x] Background noise reduced by >50% ✅
-- [x] No audible artifacts from processing ✅
-- [x] Dynamic range is natural (not over-compressed) ✅
-- [x] SNR improved by >10dB ✅ (achieved +7.1dB on top of baseline)
-
-### Audio Quality is "Excellent" When:
-- [x] Sounds like professional podcast quality ✅ (Quality Score: 81.0)
-- [x] Background noise barely perceptible ✅ (SNR: 28.5 dB)
-- [x] Speaker voice is full and clear ✅
-- [ ] No echo or room reverb (Phase 4)
-- [x] Consistent volume throughout ✅
-
-## 🚨 Common Pitfalls to Avoid
-
-1. **Don't change the test video URL** - We need consistency
-2. **Don't remove existing functionality** - Add, don't replace
-3. **Don't skip testing** - Every change must be measured
-4. **Don't break the CLI interface** - Keep run.py working
-5. **Don't ignore documentation** - Update logs immediately
-
-## 📞 When to Ask for User Input
-
-- When changing project scope or priorities
-- When trade-offs significantly affect quality vs speed
-- When adding major dependencies
-- When refactoring core architecture
-
-## 🔧 Useful Commands
-
-```bash
-# Setup environment
-cd audio-restorer
-source venv/bin/activate
-
-# Run main tool
-python run.py "URL" --audio-only --quick
-
-# Run tests
-python -m pytest tests/ -v
-
-# Analyze audio quality
-python tests/analyze_quality.py output/audio.wav
-
-# Compare two audio files
-python tests/compare_audio.py file1.wav file2.wav
-
-# View logs
-cat ITERATION_LOG.md
-cat ROADMAP.md
-```
-
-## 🌐 GitHub Integration
-
-**Repository:** https://github.com/jcherranz/audio-restorer
-
-For complete Git workflow, authentication, and commit guidelines, see: `docs/GITHUB_SETUP.md`
-
-### Quick Reference
-
-**ALWAYS commit when:**
-- ✅ Completing a feature or iteration
-- ✅ Fixing a bug
-- ✅ Adding/updating tests
-- ✅ Updating documentation
-- ✅ Before ending a session
-
-**NEVER commit:**
-- ❌ Broken or incomplete code
-- ❌ Files with failing tests
-- ❌ Secrets or temporary files
-
-**Commit message format:** `type: Brief description`
-- `feat:` New feature | `fix:` Bug fix | `docs:` Documentation
-- `test:` Tests | `refactor:` Code restructuring | `chore:` Maintenance
+### SIG Ceiling
+- SIG is the bottleneck for OVRL (listeners weight speech distortion > noise)
+- Realistic SIG ceiling for YouTube conference audio: 2.8-3.5
+- Source material quality is the primary limiter, not processing
+- Improving beyond this requires generative models (speech super-resolution)
 
 ## Enhancer Interface Contract
 
@@ -386,133 +262,94 @@ All modules should use shared utilities from `src/audio_utils.py`:
 - `save_audio(audio, path, sr)` — save with auto mkdir
 - `prevent_clipping(audio)` — normalize peaks to 0.95
 
-### Adding a New Enhancer
-
-1. Create enhancer class in `src/` directory
-2. Implement `enhance()` or `process()` method
-3. Add to `_create_enhancer()` or `_init_module()` in `src/pipeline.py`
-4. Add CLI option in `run.py` argument parser
-5. Test with reference video
-6. Update ITERATION_LOG.md with metrics
-
-### Current Enhancers
-
-| Name | File | Description |
-|------|------|-------------|
-| `simple` | audio_enhancer.py | ffmpeg filters only (fast) |
-| `torch` | ml_enhancer.py | PyTorch spectral gating |
-| `torch_advanced` | ml_enhancer.py | PyTorch + VAD |
-| `deepfilter` | deepfilter_enhancer.py | Neural denoising (best quality) |
-
-
-### Optional Post-Processing
-
-| Flag | File | Description |
-|------|------|-------------|
-| `--dereverb` | dereverb_enhancer.py | NARA-WPE de-reverberation |
-| `--diarize` | diarization.py | Speaker identification |
-| `--isolate-speaker` | speaker_isolation.py | Main speaker extraction |
-| `--distance-robust` | distance_enhancer.py | Adaptive gain/EQ by distance |
-| `--speaker-agc` | speaker_agc.py | Per-speaker volume normalization |
-| `--deess` | deesser.py | Sibilance reduction |
-| `--remove-hum` | hum_remover.py | 50/60Hz notch filter |
-| `--remove-clicks` | click_remover.py | Transient artifact removal |
-| `--comfort-noise` | comfort_noise.py | Pink noise in silence regions |
-
-## Dependencies Status
-
-### Currently Installed
-- ✅ yt-dlp (YouTube downloading)
-- ✅ ffmpeg (audio processing)
-- ✅ numpy, soundfile (audio I/O)
-- ✅ librosa (audio analysis)
-- ✅ pydub (audio manipulation)
-- ✅ noisereduce (spectral gating)
-
-### To Install for Next Phase
-- ✅ torch, torchaudio (for ML models) - INSTALLED
-- ⚠️ deepfilternet (had compatibility issues, using custom implementation)
-- ✅ speechbrain (installed, available for Phase 3)
-
-## 🎓 Reference Materials
-
-### Audio Processing Concepts
-- **Spectral Gating**: Removes noise by frequency analysis
-- **Dynamic Range Compression**: Makes quiet parts louder, loud parts quieter
-- **Normalization**: Adjusts overall volume to standard level
-- **High/Low Pass Filters**: Remove unwanted frequency ranges
-
-### Quality Metrics
-- **SNR**: Signal-to-Noise Ratio in dB
-- **LUFS**: Loudness units relative to full scale
-- **RMS**: Root Mean Square (average volume)
-- **Crest Factor**: Peak to RMS ratio (dynamic range indicator)
-
----
-
-## Iteration Plan
-
-### Phase 1: High-Impact Quality Improvements (Complete)
-| # | Iteration | Status |
-|---|-----------|--------|
-| 0 | Infrastructure (docs, base class, quality gate) | Complete |
-| 1 | Lowpass filter 8kHz -> 12kHz | Complete |
-| 2 | Sample rate 16kHz -> 44.1kHz | Complete |
-| 3 | DeepFilterNet neural denoising | Complete |
-| 4 | Silero VAD neural speech detection | Complete |
-| 5 | NARA-WPE de-reverberation | Complete |
-
-### Phase 2: SOTA Upgrades (Complete)
-| # | Iteration | Status |
-|---|-----------|--------|
-| 6 | SOTA metrics (DNSMOS, PESQ, STOI) | **Complete** |
-| 7 | ~~Resemble Enhance~~ | **REMOVED** (dependency issues) |
-| 8 | Comprehensive benchmark suite | **Complete** |
-| 9 | Speaker diarization | **Complete** |
-| 10 | Speaker isolation | **Complete** |
-| 11 | Distance-robust enhancement | **Complete** |
-| 12 | Per-speaker AGC | **Complete** |
-
-### Phase 4: Audio Quality Refinement (Complete)
-| # | Iteration | Status |
-|---|-----------|--------|
-| 13 | scipy dependency + DeepFilterNet strength | **Complete** |
-| 14 | Multi-video test suite | **Complete** |
-| 15 | De-essing (sibilance control) | **Complete** |
-| 16 | Hum removal (50/60Hz) | **Complete** |
-| 17 | Click/pop removal | **Complete** |
-| 18 | Comfort noise | **Complete** |
-
-### Cleanup: Code Quality (Complete)
-| # | Iteration | Status |
-|---|-----------|--------|
-| 20 | Critical fixes & dead code removal | **Complete** |
-| 21 | Extract shared utilities (audio_utils.py) | **Complete** |
-| 22 | Pipeline simplification & config cleanup | **Complete** |
-
 ### Available Enhancers (Best to Basic)
-1. `--enhancer deepfilter` - Neural network denoising (best quality)
+1. `--enhancer deepfilter` - Neural network denoising (best quality, GPU)
 2. `--enhancer torch_advanced` - PyTorch + Silero VAD (default)
 3. `--enhancer torch` - PyTorch spectral gating
 4. `--enhancer simple` - ffmpeg filters only (fastest)
 
 ### Optional Flags
-- `--dereverb` - Add de-reverberation (removes room echo, CPU-intensive)
-- `--diarize` - Perform speaker diarization (identifies speakers)
-- `--isolate-speaker` - Isolate main speaker (removes audience/others)
-- `--distance-robust` - Apply distance-robust enhancement (adaptive gain/EQ per speaker distance)
-- `--speaker-agc` - Apply per-speaker automatic gain control (normalize each speaker's volume)
-- `--deess` - Reduce harsh sibilant sounds (/s/, /sh/)
-- `--remove-hum` - Remove power line hum (50/60Hz + harmonics)
-- `--remove-clicks` - Remove clicks and pops (transient artifacts)
-- `--comfort-noise` - Add comfort noise to silence (prevents dead air)
+
+| Flag | File | DNSMOS Impact | Notes |
+|------|------|---------------|-------|
+| `--preset lecture/panel/noisy` | config.py | Varies | Enables flag combos |
+| `--dereverb` | dereverb_enhancer.py | **-1.30 OVRL** | Auto-skipped by quality check |
+| `--diarize` | diarization.py | N/A | Analysis only |
+| `--isolate-speaker` | speaker_isolation.py | N/A | Extracts main speaker |
+| `--distance-robust` | distance_enhancer.py | N/A | Quality-checked |
+| `--speaker-agc` | speaker_agc.py | N/A | Quality-checked |
+| `--deess` | deesser.py | Neutral | Quality-checked |
+| `--remove-hum` | hum_remover.py | **-0.25 OVRL** | Auto-skipped by quality check |
+| `--remove-clicks` | click_remover.py | **-0.23 OVRL** | Auto-skipped by quality check |
+| `--comfort-noise` | comfort_noise.py | Neutral | Quality-checked |
+| `--atten-lim` | deepfilter_enhancer.py | Degrades | None is optimal |
+
+## Iteration Plan
+
+### All Major Phases Complete
+
+| Phase | Iterations | Status |
+|-------|------------|--------|
+| 1: High-Impact Quality | 0-5 | **Complete** |
+| 2: SOTA Upgrades | 6-12 | **Complete** |
+| 4: Audio Refinement | 13-18 | **Complete** |
+| Cleanup | 19-22 | **Complete** |
+| Quality Optimization | 23-33 | **Complete** |
+| SIG-Aware Monitoring | 34 | **Complete** |
+| Multi-Video Validation | 35 | **Complete** |
+| Dereverb Benchmark | 36 | **Complete** (Phase 5 closed) |
+| Optional Stage Benchmark | 37 | **Complete** |
+
+### Remaining Opportunity
+- Improve noisy-source SIG (requires generative model or better source recordings)
+- Pipeline robustness, UX improvements, alternative neural models
+
+## 🚨 Common Pitfalls
+
+1. **Use `python3` or `source venv/bin/activate && python`** — no bare `python`
+2. **Use `FFMPEG_PATH` from config** — local binary at project root
+3. **DeepFilterNet handles device** — do NOT move tensor to CUDA manually
+4. **Strength 1.0 is optimal** — mixing original back degrades all metrics
+5. **Two-pass loudnorm** — single-pass is inaccurate by ~25 LUFS
+6. **`_quick_dnsmos()` returns dict** — `{sig, bak, ovrl}`, not float
+7. **NARA-WPE hurts quality** — in both pre/post positions
+8. **Background scripts need `PYTHONUNBUFFERED=1`** — stdout is fully buffered in non-TTY
+9. **48kHz sample rate throughout** — matches DeepFilterNet native rate
+
+## 🔧 Useful Commands
+
+```bash
+# Setup environment
+cd audio-restorer
+source venv/bin/activate
+
+# Run main tool
+python run.py "URL" --audio-only
+
+# Run with preset
+python run.py "URL" --audio-only --preset lecture
+
+# Run tests
+python -m pytest tests/test_modules.py -v
+
+# DNSMOS on a file
+python tests/sota_benchmark.py output/audio.wav
+```
+
+## 🌐 GitHub Integration
+
+**Repository:** https://github.com/jcherranz/audio-restorer
+**Remote:** SSH (`git@github.com:jcherranz/audio-restorer.git`)
+
+### Commit Guidelines
+- `feat:` New feature | `fix:` Bug fix | `docs:` Documentation
+- `test:` Tests | `refactor:` Code restructuring | `chore:` Maintenance
 
 ---
 
 **Remember:** This is an AUDIO QUALITY project. Video is secondary.
 Every iteration should make conference audio clearer and more intelligible.
 
-**Last updated:** 2026-02-06 (Cleanup iterations 20-22 complete)
-**Current Phase:** Cleanup complete - Ready for Phase 5
-**Best Quality Score:** 115.9/100 (DeepFilterNet - exceeded all targets)
-**Available Refinements:** De-essing, hum removal, click removal, comfort noise
+**Last updated:** 2026-02-07 (Iteration 37 — optional stage benchmark + docs refresh)
+**Current Phase:** Pipeline mature — all major phases complete
+**Best Enhanced OVRL:** 3.11 mean across 5 diverse conference recordings

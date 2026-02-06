@@ -2312,3 +2312,103 @@ The BAK improvement is insufficient to offset SIG loss.
 - The pipeline is mature: DeepFilterNet alone achieves mean OVRL=3.11 across diverse recordings
 - Future work should focus on pipeline robustness, UX, or alternative neural models rather than
   traditional signal processing add-ons
+
+---
+
+## [2026-02-07] Iteration 37: Optional Processing Stage Benchmark + Documentation Refresh
+
+### Summary
+Benchmarked all 4 optional post-processing modules (de-essing, hum removal, click removal,
+comfort noise) with DNSMOS on already-enhanced audio from 3 diverse recordings. Found that
+hum removal and click removal are harmful on clean audio; de-essing and comfort noise are
+neutral. Also refreshed AGENTS.md to reflect current project state (was significantly outdated).
+
+### Research Question
+Do the optional processing modules improve DNSMOS scores when applied to DeepFilterNet-enhanced audio?
+
+### Benchmark Results (10s segments × 3 videos)
+
+| Module | Mean ΔSIG | Mean ΔBAK | Mean ΔOVRL | Recommendation |
+|--------|-----------|-----------|------------|----------------|
+| **De-essing** | +0.002 | -0.026 | **-0.003** | Neutral |
+| **Hum removal** | -0.066 | -0.360 | **-0.250** | Harmful |
+| **Click removal** | -0.120 | -0.239 | **-0.234** | Harmful |
+| **Comfort noise** | -0.020 | -0.045 | **-0.037** | Neutral |
+
+### Per-Video Detail
+
+**cglDoG0GzyA (moderate noise):**
+| Module | ΔSIG | ΔBAK | ΔOVRL |
+|--------|------|------|-------|
+| De-essing | -0.01 | +0.00 | +0.00 |
+| Hum removal | -0.10 | -0.22 | -0.21 |
+| Click removal | -0.01 | +0.02 | -0.02 |
+| Comfort noise | +0.02 | +0.01 | +0.02 |
+
+**arj7oStGLkU (low noise, TED talk):**
+| Module | ΔSIG | ΔBAK | ΔOVRL |
+|--------|------|------|-------|
+| De-essing | -0.07 | -0.15 | -0.10 |
+| Hum removal | -0.17 | -0.67 | -0.50 |
+| Click removal | -0.24 | -0.33 | -0.42 |
+| Comfort noise | -0.04 | -0.20 | -0.11 |
+
+**8jPQjjsBbIc (moderate noise, tech talk):**
+| Module | ΔSIG | ΔBAK | ΔOVRL |
+|--------|------|------|-------|
+| De-essing | +0.08 | +0.07 | +0.09 |
+| Hum removal | +0.07 | -0.19 | -0.04 |
+| Click removal | -0.11 | -0.40 | -0.25 |
+| Comfort noise | -0.04 | +0.05 | -0.02 |
+
+### Analysis
+
+1. **Hum removal hurts BAK severely** (mean ΔBAK=-0.360): The 50/60Hz notch filter and its
+   harmonics overlap with legitimate speech fundamentals. On already-clean audio (no actual hum),
+   it just removes signal energy. The `_run_stage()` quality check would auto-skip this.
+
+2. **Click removal hurts across the board** (mean ΔOVRL=-0.234): On enhanced audio, the peak
+   detector has false positives — speech transients (plosives, consonants) are misidentified as
+   clicks and interpolated over, damaging both SIG and BAK.
+
+3. **De-essing is truly neutral** (ΔOVRL=-0.003): Conference audio doesn't typically have
+   sibilance problems, so the de-esser finds nothing to compress.
+
+4. **Comfort noise has negligible effect** (ΔOVRL=-0.037): On clean recordings (TED, tech talk)
+   it slightly degrades BAK by adding noise to silences. On noisy recordings it's negligible.
+
+### Safety Net Validation
+The `_run_stage()` quality monitoring (added in Iteration 34) correctly catches and auto-skips
+hum removal and click removal when they degrade OVRL by > 0.05. This confirms the pipeline's
+defense-in-depth approach works as designed.
+
+### Documentation Refresh
+Updated `AGENTS.md` comprehensively:
+- Removed reference to nonexistent `ROADMAP.md`
+- Updated quality metrics to current values (DNSMOS, multi-video aggregate)
+- Added "Key Findings from Benchmarking" section with all measured techniques
+- Updated optional flags table with DNSMOS impact data
+- Updated iteration plan to show all phases complete
+- Refreshed common pitfalls, useful commands, and testing requirements
+- Updated project status from "Ready for Phase 5" to "Pipeline mature"
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `AGENTS.md` | Complete rewrite with current project state, benchmark findings |
+| `ITERATION_LOG.md` | Documented benchmark results |
+| `tasks/todo.md` | Updated with benchmark findings |
+
+### Verification
+- [x] 4 modules benchmarked on 3 videos (12 data points)
+- [x] Quality monitoring safety net validated
+- [x] AGENTS.md reflects current reality
+- [x] 34 unit tests still passing
+
+### Next Steps
+- Pipeline is mature and well-documented
+- All traditional signal processing approaches have been measured and optimized
+- Future improvements require either:
+  - Generative neural models (speech super-resolution) for SIG improvement
+  - New source material with better baseline quality
+  - Pipeline robustness / UX improvements

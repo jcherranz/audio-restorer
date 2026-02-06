@@ -17,6 +17,11 @@
 ## Completed
 
 <!-- Move completed tasks here with date -->
+- [x] 2026-02-07: Iteration 37 — Optional stage benchmark + AGENTS.md refresh
+  - De-essing: neutral (ΔOVRL≈0.00), Comfort noise: neutral (ΔOVRL≈-0.04)
+  - Hum removal: harmful (ΔOVRL=-0.25), Click removal: harmful (ΔOVRL=-0.23)
+  - `_run_stage()` quality check correctly auto-skips harmful stages
+  - AGENTS.md completely refreshed with current state and benchmark findings
 - [x] 2026-02-06: Iteration 36 — Dereverberation DNSMOS benchmark (Phase 5 closed)
   - WPE post-enhancement: mean ΔOVRL=-1.30, all 6 tests degraded
   - WPE pre-enhancement: ΔOVRL=-0.10, SIG still hurt
