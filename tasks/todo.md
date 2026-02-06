@@ -11,11 +11,17 @@
 
 <!-- Tasks queued for implementation -->
 - [ ] Improve noisy-source SIG (cglDoG0GzyA: 2.96, FGDqFZZabsY: 2.33) — source material ceiling
-- [ ] Phase 5: Advanced dereverberation / room mode correction
+  - Requires generative model (speech super-resolution) or better source recordings
+  - Not actionable with current signal processing tools
 
 ## Completed
 
 <!-- Move completed tasks here with date -->
+- [x] 2026-02-06: Iteration 36 — Dereverberation DNSMOS benchmark (Phase 5 closed)
+  - WPE post-enhancement: mean ΔOVRL=-1.30, all 6 tests degraded
+  - WPE pre-enhancement: ΔOVRL=-0.10, SIG still hurt
+  - DeepFilterNet handles reverb implicitly — separate dereverb is harmful
+  - `--dereverb` flag retained but `_run_stage()` quality check auto-skips it
 - [x] 2026-02-06: Iteration 35 — Multi-video DNSMOS validation (5 recordings)
   - Mean enhanced: SIG=3.39, BAK=4.01, OVRL=3.11 (all improve vs original)
   - BAK consistently > 3.5 across all recordings (σ=0.30)

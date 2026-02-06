@@ -2235,3 +2235,80 @@ metrics, with BAK showing the largest gains.
 - [x] Report saved to output/multi_video_dnsmos_validation.json
 - [x] All enhanced recordings show OVRL improvement
 - [x] Average enhanced OVRL > 3.0
+
+---
+
+## [2026-02-06] Iteration 36: Dereverberation DNSMOS Benchmark — Phase 5 Closed
+
+### Summary
+Benchmarked NARA-WPE dereverberation with DNSMOS to determine whether Phase 5 (advanced
+dereverberation) is worth pursuing. Tested WPE both before and after DeepFilterNet enhancement
+on 10-second segments from 3 diverse recordings. Result: **WPE degrades quality in every
+configuration tested.** Phase 5 is closed — NARA-WPE is not viable for this pipeline.
+
+### Research Question
+Does NARA-WPE dereverberation improve DNSMOS scores when applied to conference recordings?
+
+### Test 1: WPE After DeepFilterNet (Post-Enhancement)
+Tested on 3 recordings × 2 parameter sets = 6 data points.
+
+| Video | Params | ΔSIG | ΔBAK | ΔOVRL |
+|-------|--------|------|------|-------|
+| cglDoG0GzyA | default (t=10,d=3,i=3) | -0.95 | -0.68 | -0.99 |
+| cglDoG0GzyA | light (t=5,d=2,i=2) | -1.13 | -0.76 | -1.10 |
+| arj7oStGLkU | default | -1.08 | -0.93 | -1.18 |
+| arj7oStGLkU | light | -1.77 | -1.46 | -1.78 |
+| 8jPQjjsBbIc | default | -0.80 | -0.40 | -0.75 |
+| 8jPQjjsBbIc | light | -1.89 | -1.73 | -2.02 |
+| **Mean** | | **-1.27** | **-0.83** | **-1.30** |
+
+Every test shows massive degradation. "Light" params are even worse than default.
+
+### Test 2: WPE Before DeepFilterNet (Pre-Processing)
+Tested on cglDoG0GzyA (noisiest recording, where reverb reduction should help most).
+
+| Pipeline | SIG | BAK | OVRL |
+|----------|-----|-----|------|
+| Original | 1.05 | 1.11 | 1.04 |
+| DeepFilterNet only | 2.74 | 3.50 | 2.42 |
+| WPE → DeepFilterNet | 2.54 | 3.79 | 2.33 |
+| **Delta (WPE pre vs DF-only)** | **-0.21** | **+0.29** | **-0.10** |
+
+WPE pre-processing slightly improves BAK (+0.29) but degrades SIG (-0.21) and OVRL (-0.10).
+The BAK improvement is insufficient to offset SIG loss.
+
+### Root Cause Analysis
+1. **DeepFilterNet already handles reverb** — its neural processing implicitly reduces room effects.
+   Adding a separate linear dereverb step is redundant and introduces artifacts.
+2. **WPE distorts speech** — the linear prediction algorithm removes reverb tails but also
+   damages speech harmonics, which is exactly what DNSMOS SIG measures.
+3. **Post-enhanced audio has different statistics** — WPE was designed for raw reverberant audio.
+   Applied after neural denoising, it encounters audio with unusual statistical properties
+   (very clean background, neural-processed speech) and introduces distortion.
+
+### Decision: Phase 5 Closed
+- NARA-WPE is harmful in both pipeline positions (pre and post DeepFilterNet)
+- The existing `--dereverb` flag is retained for edge cases but the `_run_stage()` quality
+  monitoring will auto-skip it (OVRL degradation > 0.05 threshold)
+- No "advanced dereverberation" is needed — DeepFilterNet handles it implicitly
+- A neural dereverb model (e.g., SpeechBrain) could theoretically work better, but would add
+  heavy dependencies for uncertain gain, given DeepFilterNet already addresses the problem
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `ITERATION_LOG.md` | Documented benchmark results |
+| `tasks/todo.md` | Closed Phase 5, updated pending items |
+
+### Verification
+- [x] Post-enhancement benchmark: 6/6 tests show degradation
+- [x] Pre-enhancement benchmark: OVRL drops -0.10
+- [x] Quality monitoring safety net confirmed (would auto-skip)
+- [x] 34 unit tests still passing
+
+### Next Steps
+- Both pending items are resolved: Phase 5 is closed (data-driven), SIG ceiling is confirmed
+  as source material limitation
+- The pipeline is mature: DeepFilterNet alone achieves mean OVRL=3.11 across diverse recordings
+- Future work should focus on pipeline robustness, UX, or alternative neural models rather than
+  traditional signal processing add-ons
