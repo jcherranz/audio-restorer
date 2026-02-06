@@ -2144,7 +2144,26 @@ over-suppress noise at the expense of speech naturalness.
 - CLI `--help` shows `--atten-lim` flag
 - DNSMOS dict return verified (sig, bak, ovrl keys)
 
-### Recommended Next Steps
-- Run full pipeline on reference video with `--atten-lim 15` and measure DNSMOS to find optimal value
-- Compare SIG scores with different attenuation limits (None, 12, 15, 20)
-- Run multi-video benchmark to validate SIG monitoring catches degrading stages
+### Benchmark: atten_lim_db on Reference Video
+
+Ran DeepFilterNet with 4 attenuation limits on the 58-minute reference video (https://youtu.be/cglDoG0GzyA).
+
+| atten_lim | SIG | BAK | OVRL | ΔSIG | ΔBAK | ΔOVRL |
+|-----------|-----|-----|------|------|------|-------|
+| **None** | **2.95** | **3.87** | **2.62** | — | — | — |
+| 20 dB | 2.57 | 2.88 | 2.17 | -0.38 | -0.98 | -0.46 |
+| 15 dB | 2.11 | 2.28 | 1.76 | -0.84 | -1.59 | -0.86 |
+| 12 dB | 1.96 | 2.05 | 1.63 | -0.99 | -1.81 | -0.99 |
+
+**Conclusion**: `atten_lim_db = None` (unlimited) wins across all metrics. For noisy
+conference audio (~15 dB input SNR), any blending of original signal back in makes
+things worse. This confirms Iteration 25's finding — full enhancement is optimal.
+
+The `--atten-lim` flag is kept for cleaner source material where preserving speech
+naturalness outweighs noise reduction. Default remains `None`.
+
+### Next Steps
+- DNSMOS SIG ~2.96 appears to be the ceiling for this source material with DeepFilterNet
+- Improving beyond this likely requires a generative model (speech super-resolution)
+  or better source recordings
+- Focus next work on multi-video validation to confirm metrics across diverse recordings

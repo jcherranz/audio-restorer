@@ -10,18 +10,18 @@
 ## Pending
 
 <!-- Tasks queued for implementation -->
-- [ ] Benchmark `--atten-lim` values (12, 15, 20 dB) on reference video — find optimal SIG/BAK tradeoff
 - [ ] Multi-video statistical validation (run 5+ diverse recordings)
-- [ ] Improve DNSMOS OVRL beyond 3.0 (currently 2.63)
-- [ ] Improve DNSMOS SIG beyond 3.0 (currently 2.96)
+- [ ] Improve DNSMOS OVRL beyond 3.0 (currently 2.63) — may need generative model
+- [ ] Improve DNSMOS SIG beyond 3.0 (currently 2.96) — source material ceiling reached
 
 ## Completed
 
 <!-- Move completed tasks here with date -->
-- [x] 2026-02-06: Iteration 34 — SIG-aware quality monitoring + DeepFilterNet atten_lim_db
+- [x] 2026-02-06: Iteration 34 — SIG-aware quality monitoring + atten_lim benchmark
   - `_run_stage()` now checks SIG degradation (not just OVRL)
   - `_quick_dnsmos()` returns dict with sig/bak/ovrl
   - Added `atten_lim_db` param to DeepFilterNet + config + CLI `--atten-lim`
+  - Benchmarked atten_lim=None/20/15/12 dB: **None is optimal** (all limits degrade scores)
 - [x] 2026-02-06: Iterations 24-33 (Quality optimization phase)
   - Fixed two-pass loudness normalization (-41 → -18.3 LUFS)
   - Strength benchmark: 1.0 is optimal (changed from 0.8)
