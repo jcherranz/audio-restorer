@@ -1,321 +1,216 @@
-# 🎙️ Audio Restoration Tool for YouTube Conference Videos
+# Audio Restoration Tool for YouTube Conference Videos
 
 Transform poor-quality conference recordings into clear, intelligible audio using AI-powered noise reduction and speech enhancement.
 
 ![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-## 🎯 What This Tool Does
+## What This Tool Does
 
-- **Downloads** videos from YouTube (audio-only mode recommended)
-- **Enhances** audio using AI-powered processing:
-  - DeepFilterNet neural noise suppression (best quality, GPU auto-selected)
-  - Speaker diarization and isolation
-  - Distance-robust enhancement (consistent volume)
-  - Audio normalization to broadcast standards
-- **Outputs** enhanced WAV or MP3 files
+Downloads audio from YouTube, enhances it with DeepFilterNet neural noise suppression, normalizes loudness to broadcast standards, and outputs a clean WAV file with a DNSMOS quality report.
 
-## 🧭 Development Standards
+**Measured quality (mean across 5 diverse conference recordings):**
 
-This project uses a layered documentation approach for AI agents:
+| Metric | Original | Enhanced | Improvement |
+|--------|----------|----------|-------------|
+| DNSMOS SIG | 2.86 | 3.39 | +0.53 |
+| DNSMOS BAK | 2.60 | 4.01 | +1.41 |
+| DNSMOS OVRL | 2.45 | 3.11 | +0.66 |
 
-| Layer | Document | Purpose |
-|-------|----------|---------|
-| Mindset | `docs/SENIOR_ENGINEER_PROMPT.md` | Behavioral principles |
-| Process | `docs/WORKFLOW_ORCHESTRATION.md` | Workflow and task management |
-| Project | `AGENTS.md` | Project-specific instructions |
+## Quick Start
 
-## 📋 Requirements
-
-### System Requirements
-- Python 3.8 or higher
-- ffmpeg (must be installed on your system)
-
-### Installing ffmpeg
-
-**Ubuntu/Debian:**
 ```bash
-sudo apt update
-sudo apt install ffmpeg
+# Setup
+git clone https://github.com/jcherranz/audio-restorer.git
+cd audio-restorer
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Basic usage (audio only, recommended)
+python run.py "https://youtu.be/cglDoG0GzyA" --audio-only
+
+# Use a preset for common scenarios
+python run.py "https://youtu.be/VIDEO_ID" --audio-only --preset lecture
+python run.py "https://youtu.be/VIDEO_ID" --audio-only --preset panel
+python run.py "https://youtu.be/VIDEO_ID" --audio-only --preset noisy
 ```
 
-**macOS:**
-```bash
-brew install ffmpeg
+Output is saved to `./output/` with a `.quality.json` report alongside each enhanced file.
+
+## Presets
+
+| Preset | Description | Enabled Stages |
+|--------|-------------|----------------|
+| `lecture` | Single speaker, mild processing | DeepFilterNet + de-essing |
+| `panel` | Multi-speaker discussions | DeepFilterNet + diarization + AGC + distance-robust + de-essing |
+| `noisy` | Aggressive cleanup | DeepFilterNet + de-essing + hum removal + click removal + comfort noise |
+
+All presets use DeepFilterNet as the core enhancer with two-pass EBU R128 loudness normalization. Optional stages are quality-checked with DNSMOS and automatically skipped if they degrade the signal.
+
+## Command Line Options
+
+```
+python run.py <youtube_url> [options]
+
+Core:
+  -o, --output NAME       Custom output filename (without extension)
+  --audio-only            Process audio only (no video) - RECOMMENDED
+  --preset PRESET         Use a preset: lecture, panel, noisy
+  --enhancer TYPE         Choose: simple, torch, torch_advanced, deepfilter
+  --noise-reduction N     Noise reduction strength 0.0-1.0 (default: 1.0)
+  --atten-lim DB          DeepFilterNet attenuation limit (default: None = max)
+
+Pre-processing:
+  --remove-hum            Remove power line hum (50/60Hz + harmonics)
+  --remove-clicks         Remove clicks and pops (transient artifacts)
+
+Enhancement:
+  --super-resolve         Apply VoiceFixer speech super-resolution (generative model)
+
+Post-processing:
+  --dereverb              Remove room echo (NARA-WPE)
+  --diarize               Perform speaker diarization
+  --isolate-speaker       Isolate main speaker
+  --distance-robust       Adaptive gain/EQ per speaker distance
+  --speaker-agc           Per-speaker automatic gain control
+  --deess                 Reduce sibilant sounds (/s/, /sh/)
+  --comfort-noise         Add comfort noise to silence regions
+
+Output:
+  --output-dir PATH       Custom output directory
+  --keep-temp             Keep temporary files for debugging
+  --quiet                 Reduce output verbosity
+  --quick                 Use only ffmpeg filters (no ML)
+  --comparison            Create before/after comparison video
 ```
 
-**Windows:**
-1. Download from https://ffmpeg.org/download.html
-2. Extract and add to PATH
+## Processing Pipeline
 
-### Python Dependencies
+```
+YouTube URL --> Download --> Extract Audio
+  --> [Pre-processing: Hum Removal, Click Removal]
+  --> Enhancement (DeepFilterNet / ML Spectral Gating / Simple)
+  --> [Super-resolution: VoiceFixer (optional, generative model)]
+  --> [Post-processing: Dereverb, Diarization, Isolation, Distance-robust, AGC, De-essing, Comfort Noise]
+  --> Loudness Normalization (two-pass EBU R128, always last)
+  --> Quality Report (DNSMOS)
+  --> Output WAV + quality.json
+```
+
+Every optional stage is quality-checked with DNSMOS: if OVRL or SIG decreases by more than 0.05, the stage is automatically skipped.
+
+## Project Structure
+
+```
+audio-restorer/
+├── run.py                     # Main entry point
+├── config.py                  # Configuration, paths, presets
+├── requirements.txt           # Python dependencies
+├── src/
+│   ├── pipeline.py            # Main orchestrator
+│   ├── deepfilter_enhancer.py # DeepFilterNet neural denoising
+│   ├── ml_enhancer.py         # PyTorch ML enhancement (CPU fallback)
+│   ├── audio_enhancer.py      # SimpleEnhancer (ffmpeg fallback)
+│   ├── audio_utils.py         # Shared I/O utilities
+│   ├── downloader.py          # YouTube downloading (yt-dlp)
+│   ├── sota_metrics.py        # DNSMOS, PESQ, STOI metrics
+│   ├── dereverb_enhancer.py   # NARA-WPE de-reverberation
+│   ├── diarization.py         # Speaker diarization
+│   ├── speaker_isolation.py   # Main speaker extraction
+│   ├── distance_enhancer.py   # Distance-robust gain/EQ
+│   ├── speaker_agc.py         # Per-speaker AGC
+│   ├── deesser.py             # Sibilance reduction
+│   ├── hum_remover.py         # 50/60Hz notch filter
+│   ├── click_remover.py       # Transient artifact removal
+│   ├── comfort_noise.py       # Pink noise for silence regions
+│   ├── voicefixer_enhancer.py # VoiceFixer speech super-resolution
+│   └── video_merger.py        # Audio+video merging
+├── tests/
+│   ├── test_modules.py        # Unit tests (synthetic audio, no network)
+│   ├── test_pipeline.py       # Pipeline integration tests
+│   └── reference_videos.json  # Test video definitions
+├── output/                    # Enhanced files
+├── temp/                      # Temporary/cached files
+└── benchmarks/                # Quality benchmarks
+```
+
+## Requirements
+
+- Python 3.8+
+- ffmpeg (system install or local binary)
+- GPU recommended for DeepFilterNet (CPU fallback available)
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## 🚀 Quick Start
+## Benchmark Findings
 
-### 1. Basic Usage - Enhance a Video
+Extensive DNSMOS benchmarking across 5 diverse conference recordings established what works and what doesn't:
 
-```bash
-python run.py "https://youtu.be/cglDoG0GzyA"
-```
+**Effective:**
+- DeepFilterNet at full strength (1.0) with unlimited suppression (`atten_lim_db=None`)
+- Two-pass EBU R128 loudness normalization (accurate to within 0.5 LUFS)
+- Per-stage DNSMOS quality monitoring (auto-skips degrading stages)
 
-Output will be saved to `./output/video_[ID]_enhanced.mp4`
+**Neutral (no measurable impact):**
+- De-essing (no sibilance issues on typical conference audio)
+- Comfort noise (negligible effect on DNSMOS)
 
-### 2. Audio Only (Faster)
+**Harmful on already-enhanced audio (auto-skipped by quality check):**
+- NARA-WPE dereverberation: OVRL -1.30 (DeepFilterNet handles reverb implicitly)
+- Hum removal: OVRL -0.25 (false positives on clean audio)
+- Click removal: OVRL -0.23 (detects speech transients as clicks)
+- Strength mixing (< 1.0): all metrics degrade
+- `atten_lim_db` 12-20 dB: OVRL -0.46 to -0.99
 
-```bash
-python run.py "https://youtu.be/cglDoG0GzyA" --audio-only
-```
+**SIG ceiling:** Speech signal quality (SIG ~2.96 for noisy sources, ~3.39 mean) is limited by source material quality. Improving beyond this requires generative models.
 
-### 3. Create Comparison Video
-
-```bash
-python run.py "https://youtu.be/cglDoG0GzyA" --comparison
-```
-
-Creates a side-by-side video showing before/after.
-
-### 4. Quick Mode (No ML Models)
-
-```bash
-python run.py "https://youtu.be/cglDoG0GzyA" --quick
-```
-
-Uses only ffmpeg filters - faster but less sophisticated.
-
-## 📁 Project Structure
-
-```
-audio-restorer/
-├── run.py                 # Main entry point
-├── config.py              # Configuration settings
-├── requirements.txt       # Python dependencies
-├── README.md              # This file
-├── src/                   # Core source code
-│   ├── downloader.py      # YouTube video/audio downloader
-│   ├── audio_enhancer.py  # Basic audio enhancement (ffmpeg)
-│   ├── ml_enhancer.py     # PyTorch-based ML enhancement
-│   ├── deepfilter_enhancer.py  # Neural noise suppression
-│   ├── dereverb_enhancer.py    # Room echo removal
-│   ├── pipeline.py        # Main orchestration
-│   └── video_merger.py    # Video/audio merging (deprecated)
-├── tests/                 # Test and benchmark scripts
-├── tools/                 # Utility tools
-│   ├── audio_compare.py   # Compare original vs enhanced
-│   └── cleanup_outputs.py # Clean old test files
-├── output/                # Enhanced files (created automatically)
-├── temp/                  # Temporary files (auto-cleaned)
-└── models/                # ML models (downloaded automatically)
-```
-
-## ⚙️ Configuration
-
-Edit `config.py` to customize:
-
-```python
-# Noise reduction strength (0.0 = none, 1.0 = maximum)
-"noise_reduction_strength": 0.8
-
-# Enhancer type: simple, torch, torch_advanced, or deepfilter
-"enhancer_type": "torch_advanced"
-
-# Normalize audio levels
-"normalize": True
-
-# Target loudness in LUFS (broadcast standard: -16)
-"target_loudness": -16
-```
-
-## 🎛️ Command Line Options
-
-```
-python run.py <youtube_url> [options]
-
-Options:
-  -h, --help            Show help message
-  -o, --output NAME     Custom output filename
-  --audio-only          Process audio only (no video) - RECOMMENDED
-  --enhancer TYPE       Choose: simple, torch, torch_advanced, deepfilter
-  --noise-reduction N   Set noise reduction 0.0-1.0
-
-Pre-processing:
-  --remove-hum          Remove power line hum (50/60Hz + harmonics)
-  --remove-clicks       Remove clicks and pops (transient artifacts)
-
-Post-processing:
-  --dereverb            Remove room echo (slower, for short files)
-  --diarize             Perform speaker diarization (identify speakers)
-  --isolate-speaker     Isolate main speaker (removes audience/others)
-  --distance-robust     Adaptive gain/EQ per speaker distance
-  --speaker-agc         Per-speaker automatic gain control
-  --deess               Reduce harsh sibilant sounds (/s/, /sh/)
-  --comfort-noise       Add comfort noise to silence (prevents dead air)
-
-Other:
-  --comparison          Create side-by-side comparison (deprecated)
-  --quick               Use only ffmpeg (faster, no ML)
-  --output-dir PATH     Custom output directory
-  --keep-temp           Keep temporary files
-  --quiet               Reduce output verbosity
-```
-
-## 🔧 Advanced Usage
-
-### Python API
+## Python API
 
 ```python
 from src.pipeline import AudioRestorationPipeline
 from config import TEMP_DIR, OUTPUT_DIR
 
-# Initialize pipeline (GPU auto-detected, deepfilter used if available)
 pipeline = AudioRestorationPipeline(
     temp_dir=TEMP_DIR,
     output_dir=OUTPUT_DIR,
-    enhancer_type="deepfilter",  # or "torch_advanced", "simple"
-    noise_reduction_strength=0.8
+    enhancer_type="deepfilter",
 )
 
-# Restore audio from a video
 result = pipeline.restore(
-    url="https://youtu.be/cglDoG0GzyA",
-    audio_only=True  # Recommended: audio-only is faster
+    url="https://youtu.be/VIDEO_ID",
+    audio_only=True,
 )
 
 if result.success:
     print(f"Enhanced audio: {result.enhanced_audio}")
 ```
 
-### Batch Processing
+## Testing
 
-```python
-urls = [
-    "https://youtu.be/video1",
-    "https://youtu.be/video2",
-    "https://youtu.be/video3"
-]
-
-results = pipeline.restore_batch(urls, audio_only=True)
-```
-
-## 🧪 Enhancement Techniques
-
-### 1. DeepFilterNet (Neural Network) - DEFAULT WITH GPU
-- State-of-the-art speech enhancement
-- Significant noise reduction (SNR: 49.0 dB)
-- Quality Score: 115.9/100
-- **Auto-selected when GPU available**
-- Manual: `--enhancer deepfilter`
-
-### 2. PyTorch + VAD (Default on CPU)
-- Spectral gating with Voice Activity Detection
-- Good balance of quality and speed
-- Quality Score: 81.0/100
-- **Auto-selected when no GPU**
-- Manual: `--enhancer torch_advanced`
-
-### 3. ffmpeg Filters (Quick Mode)
-- Fast processing, basic quality
-- No ML models required
-- Quality Score: 66.5/100
-- Use with: `--quick` or `--enhancer simple`
-
-## 🐛 Troubleshooting
-
-### "ffmpeg not found"
-Install ffmpeg using the instructions in Requirements.
-
-### "DeepFilterNet not available"
-The tool will fall back to spectral gating. To use DeepFilterNet:
 ```bash
-pip install deepfilternet
+source venv/bin/activate
+
+# Unit tests (34+ tests, ~48s)
+python -m pytest tests/test_modules.py -v
+
+# Process reference video
+python run.py "https://youtu.be/cglDoG0GzyA" --audio-only --keep-temp
+
+# Measure DNSMOS quality
+python tests/sota_benchmark.py output/audio_cglDoG0GzyA_enhanced.wav
 ```
 
-### "Video download fails"
-- Check your internet connection
-- Ensure the video is publicly accessible
-- Some videos may have download restrictions
+## License
 
-### "Out of memory"
-For long videos, try processing in audio-only mode first:
-```bash
-python run.py "URL" --audio-only
-```
+MIT License
 
-## 📝 How It Works
-
-```
-YouTube URL
-    ↓
-Download Video (yt-dlp)
-    ↓
-Extract Audio (ffmpeg)
-    ↓
-Enhance Audio
-├── DeepFilterNet (neural noise suppression)
-├── Spectral Gating (frequency noise removal)
-└── Normalization (level adjustment)
-    ↓
-Merge with Video (ffmpeg)
-    ↓
-Output Enhanced Video
-```
-
-## 🗺️ Roadmap
-
-- [x] Basic pipeline (download → enhance → merge)
-- [x] YouTube integration
-- [x] DeepFilterNet neural enhancement (best quality, GPU auto-detected)
-- [x] PyTorch ML enhancement with VAD
-- [x] De-reverberation support
-- [x] SOTA quality metrics (DNSMOS, PESQ, STOI)
-- [x] Benchmark suite
-- [x] Speaker diarization (Phase 3)
-- [x] Speaker isolation (Phase 3)
-- [x] Distance-robust enhancement (Phase 3)
-- [x] Per-speaker AGC (Phase 3)
-- [x] De-essing / sibilance control (Phase 4)
-- [x] Hum removal (Phase 4)
-- [x] Click/pop removal (Phase 4)
-- [x] Comfort noise (Phase 4)
-- [ ] Advanced room correction (Phase 5)
-- [ ] GUI interface (future)
-- [ ] Real-time preview (future)
-
-## 📚 Documentation
-
-| Document | Purpose |
-|----------|---------|
-| **QUICKSTART.md** | Get started in 30 seconds |
-| **ROADMAP.md** | Current phase and future plans |
-| **ITERATION_LOG.md** | Complete history of all changes |
-| **docs/QUALITY_METRICS.md** | How we measure audio quality |
-| **docs/GITHUB_SETUP.md** | GitHub integration guide |
-| **docs/primer.md** | Audio restoration fundamentals |
-
-**For AI Agents:**
-
-| Document | Purpose |
-|----------|---------|
-| **AGENTS.md** | Project-specific instructions (start here) |
-| **docs/SENIOR_ENGINEER_PROMPT.md** | Mindset and behavioral principles |
-| **docs/WORKFLOW_ORCHESTRATION.md** | Process, planning, and task management |
-| **tasks/todo.md** | Current task tracking |
-| **tasks/lessons.md** | Lessons learned from corrections |
-
-## 📄 License
-
-MIT License - Feel free to use and modify!
-
-## 🤝 Contributing
-
-This is an iterative project. Suggestions and improvements welcome!
-
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - [DeepFilterNet](https://github.com/Rikorose/DeepFilterNet) - Neural noise suppression
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) - YouTube downloading
 - [ffmpeg](https://ffmpeg.org/) - Audio/video processing
 - [SpeechBrain](https://speechbrain.github.io/) - Speech processing toolkit
+- [NARA-WPE](https://github.com/fgnt/nara_wpe) - De-reverberation

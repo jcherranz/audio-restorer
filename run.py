@@ -174,6 +174,12 @@ Examples:
     )
 
     parser.add_argument(
+        "--super-resolve",
+        action="store_true",
+        help="Apply VoiceFixer speech super-resolution after denoising (generative model)"
+    )
+
+    parser.add_argument(
         "--atten-lim",
         type=float,
         default=None,
@@ -262,6 +268,7 @@ def main():
         remove_hum=flag_or_preset("remove_hum"),
         remove_clicks=flag_or_preset("remove_clicks"),
         comfort_noise=flag_or_preset("comfort_noise"),
+        super_resolve=flag_or_preset("super_resolve"),
         verbose=not args.quiet
     )
     

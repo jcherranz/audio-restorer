@@ -40,6 +40,12 @@ class HumRemover:
 
     Applies narrow notch filters at the fundamental frequency and its
     harmonics to remove hum while preserving speech quality.
+
+    .. note:: Iteration 37 benchmark
+        On DeepFilterNet-enhanced audio, hum removal measured OVRL -0.25 due to
+        false positives on clean audio. The ``--remove-hum`` flag is quality-checked
+        by ``_run_stage()`` and will be auto-skipped if DNSMOS degrades.
+        Most useful on raw audio with visible 50/60 Hz hum before enhancement.
     """
 
     def __init__(self,

@@ -10,13 +10,17 @@
 ## Pending
 
 <!-- Tasks queued for implementation -->
-- [ ] Improve noisy-source SIG (cglDoG0GzyA: 2.96, FGDqFZZabsY: 2.33) — source material ceiling
-  - Requires generative model (speech super-resolution) or better source recordings
-  - Not actionable with current signal processing tools
+- [ ] VoiceFixer real-speech DNSMOS benchmark (validate on cglDoG0GzyA and other reference recordings)
+- [ ] Consider adding VoiceFixer to presets if real-speech benchmarks are positive
 
 ## Completed
 
 <!-- Move completed tasks here with date -->
+- [x] 2026-02-07: Iteration 43 — VoiceFixer integration (+0.33 SIG, +0.23 OVRL on synthetic)
+- [x] 2026-02-07: Iteration 42 — Dead code audit + deprecation notes
+- [x] 2026-02-07: Iteration 41 — Preset DNSMOS benchmark (no changes needed, presets safe)
+- [x] 2026-02-07: Iteration 40 — Integration test with DNSMOS BAK verification (35 tests)
+- [x] 2026-02-07: Iteration 39 — README.md complete rewrite
 - [x] 2026-02-07: Iteration 38 — Fix noisy preset + quality-check pre-processing
   - Removed `dereverb: True` from noisy preset (proven harmful)
   - Refactored hum/click removal to use `_run_stage()` with DNSMOS quality checks

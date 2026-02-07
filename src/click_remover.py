@@ -41,6 +41,12 @@ class ClickRemover:
 
     Detects amplitude spikes that exceed the local RMS by a threshold,
     then replaces them with interpolated values from surrounding audio.
+
+    .. note:: Iteration 37 benchmark
+        On DeepFilterNet-enhanced audio, click removal measured OVRL -0.23 because
+        it detects speech transients as clicks. The ``--remove-clicks`` flag is
+        quality-checked by ``_run_stage()`` and will be auto-skipped if DNSMOS
+        degrades. Most useful on raw audio with actual click/pop artifacts.
     """
 
     def __init__(self,

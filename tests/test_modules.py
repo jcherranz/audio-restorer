@@ -405,6 +405,92 @@ class TestDereverb:
             assert out.exists()
 
 
+# ── VoiceFixer tests ─────────────────────────────────────────────
+
+class TestVoiceFixer:
+    def test_import(self):
+        from src.voicefixer_enhancer import VoiceFixerEnhancer
+        assert VoiceFixerEnhancer is not None
+
+    def test_init(self):
+        from src.voicefixer_enhancer import VoiceFixerEnhancer
+        e = VoiceFixerEnhancer(mode=0, verbose=False)
+        assert e.mode == 0
+        assert e._model is None  # Lazy loading
+
+    def test_enhance(self):
+        from src.voicefixer_enhancer import VoiceFixerEnhancer
+        noisy, _, _ = make_noisy_speech(snr_db=5, duration=3.0)
+        with tempfile.TemporaryDirectory() as d:
+            inp = Path(d) / "noisy.wav"
+            out = Path(d) / "fixed.wav"
+            save_wav(noisy, inp)
+            e = VoiceFixerEnhancer(mode=0, use_gpu=False, verbose=False)
+            e.enhance(inp, out, target_sr=48000)
+            assert out.exists()
+            enhanced, sr = sf.read(str(out))
+            assert sr == 48000
+            # Length should match original (within a small tolerance for resampling)
+            assert abs(len(enhanced) - len(noisy)) <= 1
+
+    def test_name_property(self):
+        from src.voicefixer_enhancer import VoiceFixerEnhancer
+        e = VoiceFixerEnhancer(verbose=False)
+        assert e.name == "VoiceFixer"
+
+
+# ── Integration tests ────────────────────────────────────────────
+
+class TestIntegration:
+    """End-to-end: noisy speech → DeepFilterNet → verify DNSMOS BAK improves."""
+
+    def test_enhance_improves_bak(self):
+        """DeepFilterNet should improve DNSMOS BAK (background noise) on noisy speech."""
+        from src.deepfilter_enhancer import DeepFilterNetEnhancer
+        from src.sota_metrics import SOTAMetricsCalculator
+
+        noisy, _, _ = make_noisy_speech(snr_db=5, duration=5.0)
+
+        with tempfile.TemporaryDirectory() as d:
+            inp = Path(d) / "noisy.wav"
+            out = Path(d) / "enhanced.wav"
+            save_wav(noisy, inp)
+
+            # Enhance
+            e = DeepFilterNetEnhancer(noise_reduction_strength=1.0, verbose=False)
+            e.enhance(inp, out)
+            assert out.exists()
+
+            # Verify output has same length
+            enhanced, sr = sf.read(str(out))
+            assert len(enhanced) == len(noisy)
+
+            # Measure DNSMOS on both
+            calc = SOTAMetricsCalculator(verbose=False)
+            import librosa
+
+            noisy_16k = librosa.resample(noisy, orig_sr=48000, target_sr=16000)
+            enhanced_16k = librosa.resample(
+                enhanced.astype(np.float32), orig_sr=48000, target_sr=16000
+            )
+
+            scores_before = calc.calculate_dnsmos(noisy_16k, 16000)
+            scores_after = calc.calculate_dnsmos(enhanced_16k, 16000)
+
+            assert scores_before and scores_after, "DNSMOS calculation failed"
+
+            # BAK (background noise quality) should improve — DeepFilterNet's
+            # primary job is noise suppression, and BAK measures that directly.
+            # OVRL/SIG may not improve on synthetic tones since DNSMOS expects
+            # real speech characteristics.
+            bak_before = scores_before["bak"]
+            bak_after = scores_after["bak"]
+
+            assert bak_after > bak_before, (
+                f"DNSMOS BAK should improve: {bak_before:.2f} → {bak_after:.2f}"
+            )
+
+
 # ── Run as standalone ─────────────────────────────────────────────
 
 if __name__ == "__main__":

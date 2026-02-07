@@ -57,6 +57,7 @@ class AudioRestorationPipeline:
                  remove_hum: bool = False,
                  remove_clicks: bool = False,
                  comfort_noise: bool = False,
+                 super_resolve: bool = False,
                  verbose: bool = True):
         """
         Initialize the pipeline.
@@ -79,6 +80,7 @@ class AudioRestorationPipeline:
             remove_hum: Remove power line hum (50/60 Hz) and harmonics
             remove_clicks: Remove clicks and pops (transient artifacts)
             comfort_noise: Add comfort noise to silence regions
+            super_resolve: Apply VoiceFixer speech super-resolution after enhancement
             verbose: Print progress messages
         """
         from config import ENHANCEMENT, DEREVERB, FFMPEG_PATH
@@ -159,6 +161,13 @@ class AudioRestorationPipeline:
         self.comfort_noise_enabled, self.comfort_noise_generator = self._init_module(
             comfort_noise, ".comfort_noise", "ComfortNoiseGenerator",
             "Comfort noise (pink noise at -60dB)", verbose=verbose
+        )
+
+        self.super_resolve_enabled, self.voicefixer = self._init_module(
+            super_resolve, ".voicefixer_enhancer", "VoiceFixerEnhancer",
+            "VoiceFixer speech super-resolution",
+            use_gpu=ENHANCEMENT.get("use_gpu", False),
+            verbose=verbose
         )
 
     def _create_enhancer(self, 
@@ -572,6 +581,11 @@ class AudioRestorationPipeline:
                 else:
                     raise
 
+            # Apply VoiceFixer super-resolution if enabled (after denoising)
+            if self.super_resolve_enabled and self.voicefixer:
+                self._run_stage("VoiceFixer super-resolution", self.voicefixer,
+                                enhanced_audio_path, "_voicefixed", method="enhance")
+
             # Apply de-reverberation if enabled (after noise reduction)
             if self.dereverb_enabled and self.dereverb_enhancer:
                 self._run_stage("De-reverberation", self.dereverb_enhancer,
@@ -718,6 +732,8 @@ class AudioRestorationPipeline:
                 print(f"   Click removal: Applied (transient detection)")
             if self.comfort_noise_enabled:
                 print(f"   Comfort noise: Applied (pink noise at -60dB)")
+            if self.super_resolve_enabled:
+                print(f"   Super-resolution: Applied (VoiceFixer)")
             print("=" * 60)
             
             # Cleanup

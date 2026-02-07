@@ -2415,6 +2415,179 @@ Updated `AGENTS.md` comprehensively:
 
 ---
 
+## [2026-02-07] Iteration 43: VoiceFixer Speech Super-Resolution
+
+### Summary
+Integrated VoiceFixer generative model as optional `--super-resolve` stage.
+VoiceFixer runs AFTER DeepFilterNet and re-synthesizes speech, improving SIG
+(speech quality) beyond the discriminative model ceiling.
+
+### DNSMOS Benchmark (Synthetic Audio)
+
+| Stage | SIG | BAK | OVRL |
+|-------|-----|-----|------|
+| Noisy input | 2.47 | 2.44 | 1.95 |
+| DeepFilterNet only | 1.94 | 2.83 | 1.63 |
+| DeepFilterNet + VoiceFixer | 2.27 | 3.02 | 1.86 |
+| **VoiceFixer delta** | **+0.33** | **+0.18** | **+0.23** |
+
+VoiceFixer improves all three DNSMOS metrics after DeepFilterNet.
+SIG improvement (+0.33) exceeds the 0.1 threshold set in the plan.
+
+### Changes Made
+- Created `src/voicefixer_enhancer.py` — enhancer interface with lazy model loading
+  - 44100 Hz native output, resampled to 48000 Hz for pipeline compatibility
+  - Length-matched to original audio
+- Added `--super-resolve` CLI flag to `run.py`
+- Wired into `pipeline.py` as quality-checked stage after DeepFilterNet
+- Added `voicefixer>=0.1.2` to `requirements.txt`
+- Added 4 unit tests in `test_modules.py` (import, init, enhance, name)
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `src/voicefixer_enhancer.py` | **New** — VoiceFixer enhancer module |
+| `src/pipeline.py` | Added `super_resolve` parameter and VoiceFixer stage |
+| `run.py` | Added `--super-resolve` CLI flag |
+| `config.py` | No changes (VoiceFixer is flag-only, not in presets yet) |
+| `requirements.txt` | Added `voicefixer>=0.1.2` |
+| `tests/test_modules.py` | Added `TestVoiceFixer` class (4 tests) |
+| `README.md` | Updated pipeline diagram, CLI options, project structure |
+| `AGENTS.md` | Updated optional flags table, pipeline diagram, directory listing |
+| `ITERATION_LOG.md` | Documented changes |
+| `tasks/todo.md` | Updated |
+
+### Verification
+- [x] 39 unit tests passing (35 + 4 VoiceFixer)
+- [x] `python run.py --help` shows `--super-resolve` flag
+- [x] DNSMOS benchmark: SIG +0.33, BAK +0.18, OVRL +0.23
+- [x] VoiceFixer model loads and processes audio correctly
+- [x] Output matches 48000 Hz sample rate and original length
+
+### Notes
+- VoiceFixer outputs at 44100 Hz natively; resampled to 48000 Hz for pipeline
+- Model downloads ~600MB on first use (cached in ~/.cache/voicefixer/)
+- Synthetic audio benchmark is encouraging; real speech benchmark recommended
+- Not added to presets yet — keep as explicit `--super-resolve` flag until
+  validated on reference recordings
+
+---
+
+## [2026-02-07] Iteration 42: Dead Code Audit + Deprecation Notes
+
+### Summary
+Audited all modules and documented which are active, useful, neutral, or harmful.
+Added deprecation/benchmark notes to docstrings of harmful modules. Updated AGENTS.md
+with module categories table.
+
+### Changes Made
+- `src/dereverb_enhancer.py` — Added deprecation note (OVRL -1.30, DeepFilterNet handles reverb)
+- `src/hum_remover.py` — Added benchmark note (OVRL -0.25, false positives on clean audio)
+- `src/click_remover.py` — Added benchmark note (OVRL -0.23, speech transients detected as clicks)
+- `AGENTS.md` — Added module categories table, updated iteration plan, test count to 35
+
+### Module Categories
+
+| Category | Modules |
+|----------|---------|
+| Active by default | DeepFilterNet, loudnorm, quality report |
+| Useful for specific cases | diarization, speaker isolation, AGC, distance-robust |
+| Neutral | de-essing, comfort noise |
+| Harmful on enhanced audio | dereverb, hum removal, click removal |
+
+No modules deleted — all retained for CLI flag access in edge cases with quality-check auto-skip.
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `src/dereverb_enhancer.py` | Deprecation note in docstring |
+| `src/hum_remover.py` | Benchmark note in docstring |
+| `src/click_remover.py` | Benchmark note in docstring |
+| `AGENTS.md` | Module categories table, iteration plan, test count |
+| `ITERATION_LOG.md` | Documented changes |
+| `tasks/todo.md` | Updated |
+
+---
+
+## [2026-02-07] Iteration 41: Preset DNSMOS Benchmark
+
+### Summary
+Benchmarked all three presets' enabled stages against DNSMOS using synthetic enhanced audio.
+Confirmed that `_run_stage()` quality checks protect against all harmful stages.
+
+### Results (Synthetic Audio)
+
+| Preset | Enabled Stages | Cumulative ΔOVRL | Finding |
+|--------|---------------|------------------|---------|
+| lecture | deess | -0.21 on synthetic | Neutral on real speech (Iteration 37) |
+| panel | diarize, distance-robust, AGC, deess | N/A (diarize-dependent) | Can't benchmark without multi-speaker audio |
+| noisy | deess, hum, clicks, comfort | -0.22 on synthetic | All auto-skipped by quality check on real audio |
+
+### Key Findings
+- De-essing shows -0.21 OVRL on synthetic tones (no real sibilance), but confirmed neutral on real speech in Iteration 37
+- Hum/click removal near-neutral after de-essing (-0.04 and +0.02 respectively)
+- Comfort noise negligible (+0.01 OVRL)
+- All harmful stages are auto-skipped by `_run_stage()` quality check on real audio
+- **No preset changes needed** — existing presets are safe with quality monitoring
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `ITERATION_LOG.md` | Documented benchmark results |
+| `tasks/todo.md` | Updated |
+
+---
+
+## [2026-02-07] Iteration 40: Integration Test with DNSMOS Verification
+
+### Summary
+Added `TestIntegration` class to `tests/test_modules.py` — end-to-end test that generates
+noisy speech, runs DeepFilterNet, and verifies DNSMOS BAK (background noise) improves.
+
+### Changes Made
+- Added `TestIntegration.test_enhance_improves_bak` to `tests/test_modules.py`
+- Test generates 5s noisy speech at 5 dB SNR
+- Runs DeepFilterNet enhancement
+- Measures DNSMOS on both input and output
+- Asserts BAK improves (BAK measures noise suppression directly)
+- Note: OVRL/SIG assertion avoided because DNSMOS expects real speech characteristics, and synthetic tones don't improve on those axes
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `tests/test_modules.py` | Added `TestIntegration` class (1 test) |
+| `ITERATION_LOG.md` | Documented changes |
+
+### Verification
+- [x] 35 unit tests passing (34 existing + 1 new integration test)
+- [x] Integration test runs in ~7s (fast, deterministic, no network)
+
+---
+
+## [2026-02-07] Iteration 39: README.md Refresh
+
+### Summary
+Complete rewrite of README.md. Removed outdated info (inflated quality scores, missing features)
+and replaced with current state: DNSMOS metrics, preset system, complete CLI flags, updated
+project structure, benchmark findings summary.
+
+### Changes Made
+- Replaced inflated "Quality Score: 115.9/100" with real DNSMOS multi-video aggregate
+- Added presets section with table
+- Complete CLI options organized by category (core, pre-processing, post-processing, output)
+- Updated project structure (all 17 src/ modules)
+- Added benchmark findings section (what works, what doesn't, SIG ceiling)
+- Removed outdated roadmap, batch processing API (not implemented), emoji-heavy headers
+- Simplified quick start with preset examples
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `README.md` | Complete rewrite reflecting current state |
+| `ITERATION_LOG.md` | Documented changes |
+
+---
+
 ## [2026-02-07] Iteration 38: Fix Presets + Quality-Check Pre-Processing Stages
 
 ### Summary

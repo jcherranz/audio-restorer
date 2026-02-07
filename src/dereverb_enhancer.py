@@ -32,18 +32,14 @@ class DereverbEnhancer:
 
     WPE (Weighted Prediction Error) is a blind dereverberation method
     that uses long-term linear prediction to estimate and remove reverb.
-    It's particularly effective for conference room recordings where
-    room echo makes speech sound "muddy".
 
-    Features:
-    - Blind processing (no room model required)
-    - Works well on single-channel audio
-    - Lightweight and CPU-capable
-    - Preserves speech quality while reducing reverb
-
-    Note:
-        For best results, apply de-reverberation AFTER noise reduction.
-        A clean signal produces better reverb estimation.
+    .. deprecated:: Iteration 36
+        DNSMOS benchmarking showed WPE is harmful on DeepFilterNet-enhanced audio:
+        - Post-enhancement: mean OVRL -1.30 across 5 recordings (all degraded)
+        - Pre-enhancement: OVRL -0.10, SIG still hurt
+        DeepFilterNet handles reverb implicitly, making separate dereverberation
+        redundant and counterproductive. The ``--dereverb`` flag is retained for
+        edge cases but ``_run_stage()`` quality checks will auto-skip it.
     """
 
     NATIVE_SR = 48000  # Match DeepFilterNet for compatibility

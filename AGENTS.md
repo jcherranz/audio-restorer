@@ -44,7 +44,7 @@ This project follows **Kaizen** (continuous improvement) principles:
 - ✅ Two-pass EBU R128 loudness normalization
 - ✅ Automatic quality report (DNSMOS + grade)
 - ✅ Preset system (lecture/panel/noisy)
-- ✅ 34 unit tests passing
+- ✅ 39 unit tests passing
 
 ### Test Videos
 
@@ -62,6 +62,7 @@ This project follows **Kaizen** (continuous improvement) principles:
 YouTube URL → Download → Extract Audio
   → [Pre-processing: Hum Removal, Click Removal]
   → Enhancement (DeepFilterNet / ML Spectral Gating / Simple)
+  → [Super-resolution: VoiceFixer (optional)]
   → [Post-processing: Dereverb, Diarization, Isolation, Distance-robust, AGC, De-essing, Comfort Noise]
   → Loudness Normalization (two-pass, always last) → Quality Report → Output
 ```
@@ -76,7 +77,7 @@ YouTube URL → Download → Extract Audio
 | Quality Score | 87.9/100 | > 75 | Passing |
 | SNR | 47 dB | > 25 dB | Passing |
 | Loudness | -18.3 LUFS | -16 LUFS | Passing |
-| Unit Tests | 34 | > 20 | Passing |
+| Unit Tests | 39 | > 20 | Passing |
 
 ### Multi-Video Aggregate (5 recordings)
 
@@ -117,10 +118,11 @@ audio-restorer/
 │   ├── hum_remover.py       ← 50/60Hz notch filter
 │   ├── click_remover.py     ← Transient artifact removal
 │   ├── comfort_noise.py     ← Pink noise for silence regions
+│   ├── voicefixer_enhancer.py ← VoiceFixer speech super-resolution
 │   ├── video_merger.py      ← Audio+video merging
 │   └── sota_metrics.py      ← DNSMOS, PESQ, STOI
 ├── tests/              ← Test files
-│   ├── test_modules.py      ← 34 unit tests (synthetic audio, no network)
+│   ├── test_modules.py      ← 39 unit tests (synthetic audio, no network)
 │   ├── test_pipeline.py     ← Pipeline integration tests
 │   ├── reference_videos.json ← 5 test video definitions
 │   └── ...
@@ -282,7 +284,17 @@ All modules should use shared utilities from `src/audio_utils.py`:
 | `--remove-hum` | hum_remover.py | **-0.25 OVRL** | Auto-skipped by quality check |
 | `--remove-clicks` | click_remover.py | **-0.23 OVRL** | Auto-skipped by quality check |
 | `--comfort-noise` | comfort_noise.py | Neutral | Quality-checked |
+| `--super-resolve` | voicefixer_enhancer.py | **+0.23 OVRL** | Generative model, runs after DeepFilterNet |
 | `--atten-lim` | deepfilter_enhancer.py | Degrades | None is optimal |
+
+### Module Categories
+
+| Category | Modules | Status |
+|----------|---------|--------|
+| **Active by default** | DeepFilterNet, loudnorm, quality report | Always runs |
+| **Useful for specific cases** | diarization, speaker isolation, AGC, distance-robust | Structural transforms for multi-speaker audio |
+| **Neutral** | de-essing, comfort noise | No measurable impact on DNSMOS |
+| **Harmful on enhanced audio** | dereverb, hum removal, click removal | Quality-checked, auto-skipped; see docstrings for deprecation notes |
 
 ## Iteration Plan
 
@@ -299,10 +311,17 @@ All modules should use shared utilities from `src/audio_utils.py`:
 | Multi-Video Validation | 35 | **Complete** |
 | Dereverb Benchmark | 36 | **Complete** (Phase 5 closed) |
 | Optional Stage Benchmark | 37 | **Complete** |
+| Fix Presets + Quality-Check Pre-proc | 38 | **Complete** |
+| README Refresh | 39 | **Complete** |
+| Integration Test + DNSMOS | 40 | **Complete** |
+| Preset DNSMOS Benchmark | 41 | **Complete** |
+| Dead Code Audit | 42 | **Complete** |
+| VoiceFixer Integration | 43 | **Complete** |
 
 ### Remaining Opportunity
-- Improve noisy-source SIG (requires generative model or better source recordings)
-- Pipeline robustness, UX improvements, alternative neural models
+- VoiceFixer real-speech DNSMOS validation (benchmark on reference recordings)
+- Consider adding `--super-resolve` to presets if validated
+- Pipeline robustness, UX improvements
 
 ## 🚨 Common Pitfalls
 
@@ -350,6 +369,6 @@ python tests/sota_benchmark.py output/audio.wav
 **Remember:** This is an AUDIO QUALITY project. Video is secondary.
 Every iteration should make conference audio clearer and more intelligible.
 
-**Last updated:** 2026-02-07 (Iteration 37 — optional stage benchmark + docs refresh)
+**Last updated:** 2026-02-07 (Iteration 43 — VoiceFixer speech super-resolution)
 **Current Phase:** Pipeline mature — all major phases complete
 **Best Enhanced OVRL:** 3.11 mean across 5 diverse conference recordings
