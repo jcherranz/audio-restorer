@@ -2415,6 +2415,44 @@ Updated `AGENTS.md` comprehensively:
 
 ---
 
+## [2026-02-07] Iteration 44: VoiceFixer Real-Speech Validation + New Reference Set
+
+### Summary
+Validated VoiceFixer on real speech from new reference playlist (Filosofía Moderna 2 lecture series). Updated reference_videos.json with 5 representative recordings from the 35-video playlist.
+
+### Changes Made
+- Updated `tests/reference_videos.json` with 5 videos from new reference playlist
+- Benchmarked VoiceFixer on ZeYufc1ZER8 (Lecture 01/22, 55 min)
+
+### Files Modified
+- `tests/reference_videos.json` — New reference set from Filosofía Moderna 2 playlist
+
+### Test Results
+**Video:** ZeYufc1ZER8 (Lecture 01/22, 55 min, 2006 classroom recording)
+
+| Metric | Baseline (DeepFilterNet) | + VoiceFixer | Delta |
+|--------|--------------------------|--------------|-------|
+| SIG    | 2.61                     | 2.70         | **+0.09** |
+| BAK    | 3.52                     | 3.71         | **+0.19** |
+| OVRL   | 2.32                     | 2.49         | **+0.17** |
+| Time   | 600s                     | 923s         | +54% |
+
+Mid-pipeline quality check (before loudnorm): OVRL 2.81→3.28 (+0.47), SIG 3.11→3.50 (+0.39)
+
+### Notes
+- VoiceFixer improves all three DNSMOS metrics on real speech
+- Gains are smaller than synthetic benchmark (+0.17 vs +0.23 OVRL) — expected for real-world audio
+- BAK gain (+0.19) is larger than SIG (+0.09), suggesting VoiceFixer also smooths noise artifacts
+- Processing time increases ~54% with VoiceFixer (worth it for quality)
+- Mid-pipeline gains are larger than final output — loudnorm compresses some benefit
+- New reference set: 5 lectures from same series for consistent benchmarking conditions
+
+### Next Steps
+- Run remaining 4 reference videos with --super-resolve for multi-video validation
+- If consistent: consider adding VoiceFixer to lecture preset
+
+---
+
 ## [2026-02-07] Iteration 43: VoiceFixer Speech Super-Resolution
 
 ### Summary

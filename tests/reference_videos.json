@@ -1,63 +1,60 @@
 {
-  "description": "Test video library for multi-video benchmarking",
-  "last_updated": "2026-02-06",
+  "description": "Test video library for multi-video benchmarking — Filosofía Moderna 2 lecture series",
+  "playlist": "https://www.youtube.com/playlist?list=PLh5w5JaGwAyJyJg9fPeWKUbsZDAXBXQ3G",
+  "last_updated": "2026-02-07",
   "videos": [
     {
-      "id": "cglDoG0GzyA",
-      "url": "https://youtu.be/cglDoG0GzyA",
-      "type": "conference",
-      "duration_min": 58,
+      "id": "ZeYufc1ZER8",
+      "url": "https://youtu.be/ZeYufc1ZER8",
+      "type": "lecture",
+      "duration_min": 55,
       "speakers": "single_main",
       "noise_level": "moderate",
-      "notes": "Primary reference video - conference presentation"
+      "notes": "Lecture 01/22 — primary reference, 2006 classroom recording"
     },
     {
       "id": "FGDqFZZabsY",
       "url": "https://youtu.be/FGDqFZZabsY",
-      "type": "conference",
-      "duration_min": 55,
+      "type": "lecture",
+      "duration_min": 56,
       "speakers": "single_main",
       "noise_level": "moderate",
-      "notes": "Conference presentation - second reference"
+      "notes": "Lecture 02a/22 — continuity from prior reference set"
     },
     {
-      "id": "UF8uR6Z6KLc",
-      "url": "https://youtu.be/UF8uR6Z6KLc",
-      "type": "conference",
-      "duration_min": 18,
-      "speakers": "single_main",
-      "noise_level": "low",
-      "notes": "Steve Jobs iPhone keynote - large venue, good mic"
-    },
-    {
-      "id": "8jPQjjsBbIc",
-      "url": "https://youtu.be/8jPQjjsBbIc",
-      "type": "conference",
-      "duration_min": 25,
+      "id": "SgA6h7ovC_A",
+      "url": "https://youtu.be/SgA6h7ovC_A",
+      "type": "lecture",
+      "duration_min": 53,
       "speakers": "single_main",
       "noise_level": "moderate",
-      "notes": "Technical talk - typical conference room"
+      "notes": "Lecture 05b/22 — mid-series sample"
     },
     {
-      "id": "arj7oStGLkU",
-      "url": "https://youtu.be/arj7oStGLkU",
-      "type": "conference",
-      "duration_min": 15,
+      "id": "XgwS61OrMho",
+      "url": "https://youtu.be/XgwS61OrMho",
+      "type": "lecture",
+      "duration_min": 60,
       "speakers": "single_main",
-      "noise_level": "low",
-      "notes": "TED talk - professional recording setup"
+      "noise_level": "moderate",
+      "notes": "Lecture 09a/22 — longest recording in set (1h00m), marked (p)"
+    },
+    {
+      "id": "6QV8FPXBrRw",
+      "url": "https://youtu.be/6QV8FPXBrRw",
+      "type": "lecture",
+      "duration_min": 51,
+      "speakers": "single_main",
+      "noise_level": "moderate",
+      "notes": "Lecture 22b/22 — last in series, end-of-course sample"
     }
   ],
   "categories": {
-    "conference": "Formal presentations, single main speaker",
-    "panel": "Multiple speakers taking turns",
-    "interview": "Two-person conversation",
-    "webinar": "Screen share with voice",
-    "informal": "Casual recording"
+    "lecture": "Classroom lectures, single speaker with occasional audience interaction"
   },
   "noise_levels": {
     "low": "Clean recording, minimal background noise",
-    "moderate": "Some background noise, typical conference",
+    "moderate": "Some background noise, typical classroom/conference",
     "high": "Significant noise, challenging environment"
   }
 }

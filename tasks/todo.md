@@ -10,12 +10,13 @@
 ## Pending
 
 <!-- Tasks queued for implementation -->
-- [ ] VoiceFixer real-speech DNSMOS benchmark (validate on cglDoG0GzyA and other reference recordings)
-- [ ] Consider adding VoiceFixer to presets if real-speech benchmarks are positive
+- [ ] VoiceFixer multi-video validation (4 remaining reference recordings with --super-resolve)
+- [ ] Consider adding VoiceFixer to lecture preset if multi-video results are consistent
 
 ## Completed
 
 <!-- Move completed tasks here with date -->
+- [x] 2026-02-07: Iteration 44 — VoiceFixer real-speech validation (ZeYufc1ZER8: +0.09 SIG, +0.17 OVRL)
 - [x] 2026-02-07: Iteration 43 — VoiceFixer integration (+0.33 SIG, +0.23 OVRL on synthetic)
 - [x] 2026-02-07: Iteration 42 — Dead code audit + deprecation notes
 - [x] 2026-02-07: Iteration 41 — Preset DNSMOS benchmark (no changes needed, presets safe)
