@@ -105,7 +105,8 @@ class DeepFilterNetEnhancer:
 
             self.model, self.df_state, _ = init_df(
                 post_filter=self.post_filter,
-                log_level="WARNING" if not self.verbose else "INFO"
+                log_level="WARNING" if not self.verbose else "INFO",
+                log_file=None
             )
             self._df_enhance = df_enhance
             self._model_sr = self.df_state.sr()

@@ -2676,3 +2676,44 @@ gap in the quality monitoring safety net.
 - [x] `noisy` preset no longer enables dereverb
 - [x] Pre-processing stages now quality-checked via `_run_stage()`
 - [x] Pipeline module loads and compiles clean
+
+---
+
+## [2026-02-07] Iteration 45: CI + Release Checklist + Golden DNSMOS Regression
+
+### Summary
+Added a GitHub Actions CI workflow, a release checklist, a project changelog,
+and a golden sample DNSMOS regression test set with stored baselines.
+
+### Changes Made
+- Added CI workflow to run `pytest` and a lightweight quality smoke test
+- Added `CHANGELOG.md` (Keep a Changelog format)
+- Added `docs/RELEASE_CHECKLIST.md` with pre-release verification steps
+- Added golden DNSMOS regression test with stored baselines
+- Added script to update golden baselines
+- Disabled DeepFilterNet file logging to avoid cache permission errors
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `.github/workflows/ci.yml` | New CI workflow |
+| `tests/ci_quality_smoke.py` | New lightweight quality check |
+| `tests/test_modules.py` | Golden sample DNSMOS regression test |
+| `tests/golden_samples.json` | Stored DNSMOS baselines |
+| `tests/update_golden_samples.py` | Baseline update helper |
+| `src/deepfilter_enhancer.py` | Disable DeepFilterNet log file output |
+| `CHANGELOG.md` | New changelog |
+| `docs/RELEASE_CHECKLIST.md` | New release checklist |
+| `tasks/todo.md` | Updated |
+| `ITERATION_LOG.md` | Documented changes |
+
+### Test Results
+- Golden DNSMOS baselines updated (script): `venv/bin/python3 tests/update_golden_samples.py`
+- Unit tests: `venv/bin/python3 -m pytest tests/test_modules.py -v` (40 passed, 7 warnings)
+
+### Notes
+- CI installs deps and runs tests + smoke check on GitHub Actions.
+- Golden DNSMOS test skips if the model cannot be loaded.
+
+### Next Steps
+- Run `python -m pytest tests/test_modules.py -v` locally to validate.

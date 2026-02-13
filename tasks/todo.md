@@ -16,6 +16,7 @@
 ## Completed
 
 <!-- Move completed tasks here with date -->
+- [x] 2026-02-07: Iteration 45 — Add CI, release checklist, changelog, golden DNSMOS regression tests
 - [x] 2026-02-07: Iteration 44 — VoiceFixer real-speech validation (ZeYufc1ZER8: +0.09 SIG, +0.17 OVRL)
 - [x] 2026-02-07: Iteration 43 — VoiceFixer integration (+0.33 SIG, +0.23 OVRL on synthetic)
 - [x] 2026-02-07: Iteration 42 — Dead code audit + deprecation notes

@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "samples": [
+    {
+      "id": "speech_like_clean",
+      "type": "speech_like",
+      "duration_s": 3.0,
+      "baseline": {
+        "sig": 2.6314773559570312,
+        "bak": 2.671393871307373,
+        "ovrl": 2.162186861038208
+      },
+      "tolerance": 0.2
+    },
+    {
+      "id": "speech_like_noisy_5db",
+      "type": "speech_noisy",
+      "duration_s": 3.0,
+      "snr_db": 5.0,
+      "seed": 42,
+      "baseline": {
+        "sig": 2.394775867462158,
+        "bak": 2.3616392612457275,
+        "ovrl": 1.8898555040359497
+      },
+      "tolerance": 0.2
+    }
+  ]
+}

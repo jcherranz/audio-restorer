@@ -16,6 +16,7 @@ import tempfile
 from pathlib import Path
 
 import numpy as np
+import pytest
 import soundfile as sf
 
 # Add parent to path
@@ -41,17 +42,34 @@ def make_speech_like(duration=3.0, sr=48000):
     return signal.astype(np.float32)
 
 
-def make_noisy_speech(snr_db=10, duration=3.0, sr=48000):
+def make_noisy_speech(snr_db=10, duration=3.0, sr=48000, seed=42):
     """Generate speech + white noise at a given SNR."""
     speech = make_speech_like(duration, sr)
     noise_power = np.mean(speech ** 2) / (10 ** (snr_db / 10))
-    noise = np.random.RandomState(42).randn(len(speech)).astype(np.float32) * np.sqrt(noise_power)
+    rng = np.random.RandomState(seed)
+    noise = rng.randn(len(speech)).astype(np.float32) * np.sqrt(noise_power)
     return speech + noise, speech, noise
 
 
 def save_wav(audio, path, sr=48000):
     """Save audio to WAV file."""
     sf.write(str(path), audio, sr)
+
+def generate_golden_audio(spec: dict, sr: int = 48000) -> np.ndarray:
+    """Generate deterministic audio for golden sample regression."""
+    duration = float(spec.get("duration_s", 3.0))
+    audio_type = spec.get("type")
+
+    if audio_type == "speech_like":
+        return make_speech_like(duration, sr)
+
+    if audio_type == "speech_noisy":
+        snr_db = float(spec.get("snr_db", 10.0))
+        seed = int(spec.get("seed", 42))
+        noisy, _, _ = make_noisy_speech(snr_db=snr_db, duration=duration, sr=sr, seed=seed)
+        return noisy
+
+    raise ValueError(f"Unknown golden sample type: {audio_type}")
 
 
 # ── audio_utils tests ────────────────────────────────────────────
@@ -437,6 +455,45 @@ class TestVoiceFixer:
         from src.voicefixer_enhancer import VoiceFixerEnhancer
         e = VoiceFixerEnhancer(verbose=False)
         assert e.name == "VoiceFixer"
+
+
+# ── Golden sample regression tests ──────────────────────────────
+
+class TestGoldenSamples:
+    def test_dnsmos_regression(self):
+        """DNSMOS scores should stay within tolerance for golden samples."""
+        from src.sota_metrics import SOTAMetricsCalculator
+        import json
+        import librosa
+
+        golden_path = Path(__file__).parent / "golden_samples.json"
+        with golden_path.open("r", encoding="utf-8") as f:
+            payload = json.load(f)
+
+        samples = payload.get("samples", [])
+        assert samples, "No golden samples defined"
+
+        calc = SOTAMetricsCalculator(verbose=False)
+
+        for sample in samples:
+            audio = generate_golden_audio(sample, sr=48000)
+            audio_16k = librosa.resample(audio, orig_sr=48000, target_sr=16000)
+            scores = calc.calculate_dnsmos(audio_16k, 16000)
+
+            if not scores:
+                pytest.skip("DNSMOS model unavailable or failed to load")
+
+            baseline = sample["baseline"]
+            tolerance = float(sample.get("tolerance", 0.2))
+
+            for key in ["sig", "bak", "ovrl"]:
+                assert key in scores, f"Missing DNSMOS key: {key}"
+                observed = float(scores[key])
+                expected = float(baseline[key])
+                assert abs(observed - expected) <= tolerance, (
+                    f"{sample['id']} {key} drifted: {observed:.2f} vs {expected:.2f} "
+                    f"(tol={tolerance})"
+                )
 
 
 # ── Integration tests ────────────────────────────────────────────
