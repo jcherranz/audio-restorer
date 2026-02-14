@@ -30,6 +30,9 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 from config import TEMP_DIR, OUTPUT_DIR, ENHANCEMENT, PRESETS
 from src.pipeline import AudioRestorationPipeline
 
+# Version info
+__version__ = "1.0.0"
+
 
 def create_parser():
     """Create command line argument parser"""
@@ -53,6 +56,13 @@ Examples:
   # Keep temporary files for debugging
   python run.py "https://youtu.be/cglDoG0GzyA" --keep-temp
         """
+    )
+    
+    parser.add_argument(
+        "--version",
+        action="version",
+        version="%(prog)s " + __version__,
+        help="Show program version"
     )
     
     parser.add_argument(
